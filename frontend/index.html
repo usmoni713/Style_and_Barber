@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Стиль и Барбер - Онлайн запись</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💇 Стиль и Барбер</h1>
+            <p class="subtitle">Система онлайн-записи</p>
+        </header>
+
+        <!-- Форма авторизации -->
+        <div id="loginSection" class="card">
+            <h2>Вход в систему</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Email или телефон:</label>
+                    <input type="text" id="username" name="username" required placeholder="email@example.com или +79991234567">
+                </div>
+                <div class="form-group">
+                    <label for="password">Пароль:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Войти</button>
+            </form>
+            <div id="loginError" class="error-message"></div>
+        </div>
+
+        <!-- Форма регистрации -->
+        <div id="registerSection" class="card" style="display: none;">
+            <h2>Регистрация</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regName">Имя:</label>
+                    <input type="text" id="regName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="regLastname">Фамилия:</label>
+                    <input type="text" id="regLastname" name="lastname">
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email:</label>
+                    <input type="email" id="regEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPhone">Телефон:</label>
+                    <input type="tel" id="regPhone" name="phone" placeholder="+79991234567">
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Пароль:</label>
+                    <input type="password" id="regPassword" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+            </form>
+            <div id="registerError" class="error-message"></div>
+            <p class="switch-form">
+                Уже есть аккаунт? <a href="#" id="showLogin">Войти</a>
+            </p>
+        </div>
+
+        <!-- Основной контент после авторизации -->
+        <div id="mainContent" style="display: none;">
+            <div class="user-info">
+                <span id="userName"></span>
+                <button id="logoutBtn" class="btn btn-secondary">Выйти</button>
+            </div>
+
+            <nav class="tabs">
+                <button class="tab-btn active" data-tab="appointments">Мои записи</button>
+                <button class="tab-btn" data-tab="new-appointment">Новая запись</button>
+            </nav>
+
+            <!-- Вкладка: Мои записи -->
+            <div id="appointmentsTab" class="tab-content active">
+                <h2>Мои записи</h2>
+                <div id="appointmentsList" class="appointments-list">
+                    <p class="loading">Загрузка...</p>
+                </div>
+            </div>
+
+            <!-- Вкладка: Новая запись -->
+            <div id="newAppointmentTab" class="tab-content">
+                <h2>Создать новую запись</h2>
+                <form id="newAppointmentForm" class="appointment-form">
+                    <div class="form-group">
+                        <label for="salonSelect">Салон:</label>
+                        <select id="salonSelect" name="salon_id" required>
+                            <option value="">Выберите салон...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceSelect">Услуга:</label>
+                        <select id="serviceSelect" name="service_id" required>
+                            <option value="">Выберите услугу...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="masterSelect">Мастер:</label>
+                        <select id="masterSelect" name="master_id" required>
+                            <option value="">Выберите мастера...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dateTime">Дата и время:</label>
+                        <input type="datetime-local" id="dateTime" name="date_time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="comment">Комментарий (необязательно):</label>
+                        <textarea id="comment" name="comment" rows="3" placeholder="Дополнительная информация..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Создать запись</button>
+                </form>
+                <div id="appointmentError" class="error-message"></div>
+                <div id="appointmentSuccess" class="success-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
