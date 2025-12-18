@@ -22,7 +22,7 @@ class AppointmentCreate(BaseModel):
     salon_id: int
     master_id: int
     service_id: int
-    date_time: datetime  # Формат: "2024-12-15T14:30:00"
+    date_time: datetime  # Формат: "2025-12-15T14:30:00"
     comment: Optional[str] = None
 
 

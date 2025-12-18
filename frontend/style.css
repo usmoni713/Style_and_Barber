@@ -257,6 +257,34 @@ header h1 {
     color: #721c24;
 }
 
+.appointment-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-cancel {
+    background: #dc3545;
+    color: white;
+    padding: 8px 16px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: auto;
+    flex-shrink: 0;
+}
+
+.btn-cancel:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(220, 53, 69, 0.3);
+}
+
 .loading {
     text-align: center;
     padding: 40px;

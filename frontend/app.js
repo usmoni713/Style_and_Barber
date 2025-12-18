@@ -271,7 +271,11 @@ async function loadAppointments() {
             return;
         }
 
-        listDiv.innerHTML = appointments.map(apt => `
+        listDiv.innerHTML = appointments.map(apt => {
+            const isPast = new Date(apt.date_time) < new Date();
+            const canCancel = apt.status && !isPast;
+            
+            return `
             <div class="appointment-item">
                 <h3>Запись #${apt.id}</h3>
                 <p><strong>Дата и время:</strong> ${formatDateTime(apt.date_time)}</p>
@@ -280,11 +284,19 @@ async function loadAppointments() {
                 <p><strong>Мастер ID:</strong> ${apt.master_id}</p>
                 <p><strong>Услуга ID:</strong> ${apt.service_id}</p>
                 ${apt.comment ? `<p><strong>Комментарий:</strong> ${apt.comment}</p>` : ''}
-                <span class="status ${apt.status ? 'active' : 'cancelled'}">
-                    ${apt.status ? 'Подтверждена' : 'Отменена'}
-                </span>
+                <div class="appointment-actions">
+                    <span class="status ${apt.status ? 'active' : 'cancelled'}">
+                        ${apt.status ? 'Подтверждена' : 'Отменена'}
+                    </span>
+                    ${canCancel ? `
+                        <button class="btn btn-cancel" onclick="cancelAppointment(${apt.id})">
+                            Отменить запись
+                        </button>
+                    ` : ''}
+                </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     } catch (error) {
         listDiv.innerHTML = `<div class="error-message show">Ошибка загрузки: ${error.message}</div>`;
     }
@@ -386,6 +398,37 @@ document.getElementById('newAppointmentForm')?.addEventListener('submit', async 
         errorDiv.classList.add('show');
     }
 });
+
+// Отмена записи (доступна глобально для onclick)
+window.cancelAppointment = async function(appointmentId) {
+    if (!confirm('Вы уверены, что хотите отменить эту запись?')) {
+        return;
+    }
+
+    try {
+        const data = await apiRequest(`/del_appointment?appointment_id=${appointmentId}`, {
+            method: 'DELETE'
+        });
+
+        // Показываем сообщение об успехе
+        const listDiv = document.getElementById('appointmentsList');
+        const successMsg = document.createElement('div');
+        successMsg.className = 'success-message show';
+        successMsg.textContent = 'Запись успешно отменена';
+        listDiv.insertBefore(successMsg, listDiv.firstChild);
+        
+        // Убираем сообщение через 3 секунды
+        setTimeout(() => {
+            successMsg.remove();
+        }, 3000);
+        
+        // Обновляем список записей
+        loadAppointments();
+    } catch (error) {
+        alert('Ошибка при отмене записи: ' + error.message);
+        console.error('Ошибка отмены записи:', error);
+    }
+}
 
 // Форматирование даты и времени
 function formatDateTime(dateTimeString) {

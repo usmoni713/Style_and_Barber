@@ -44,7 +44,6 @@ async def add_user(user: User):
         return {"data": "User created successfully"}
     except IntegrityError:
         raise HTTPException(status_code=409, detail="this email or phone number is already busy.")
-#  TODO: добавить обработку ошибок
 
 
 
@@ -79,7 +78,7 @@ async def show_appointments(user: DBUser = Depends(sc.get_user_from_id)):
      
     async with AssyncSessionLocal() as session:
 
-        stmt = select(DBappointment).where(DBappointment.client_id == user.id)
+        stmt = select(DBappointment).where(and_(DBappointment.client_id == user.id, DBappointment.is_active == True))
         result = await session.execute(stmt)
         appointments = result.scalars().all()
         
@@ -136,7 +135,7 @@ async def add_appointment(
                 and_(
                     DBappointment.master_id == appointment_data.master_id,
                     DBappointment.date_time == appointment_data.date_time,
-                    DBappointment.status == True  
+                    DBappointment.is_active == True  
                 )
             )
             existing_result = await session.execute(existing_stmt)
@@ -147,9 +146,19 @@ async def add_appointment(
             
             
             end_time = appointment_data.date_time + timedelta(minutes=service.duration_minutes)
-            
-          
-            
+
+            stmt = select(DBappointment).where(
+                and_(
+                    DBappointment.master_id == appointment_data.master_id,
+                    # Пересечение интервалов:
+                    DBappointment.date_time < end_time,
+                    DBappointment.end_time > appointment_data.date_time,
+                )
+            )
+            chec_if_not_free_time_result = await session.execute(stmt)
+            chec_if_not_free_time = chec_if_not_free_time_result.scalar()
+            if chec_if_not_free_time:
+                raise HTTPException(status_code=409,detail="This time slot is already booked" )    
             appointment = DBappointment(
                 client_id=user.id,
                 salon_id=appointment_data.salon_id,
@@ -252,6 +261,42 @@ async def get_services():
             })
         
         return {"services": services_list}
+
+
+@app.delete("/del_appointment")
+async def delete_appointment(
+    appointment_id: int,
+    user: DBUser = Depends(sc.get_user_from_id)
+):
+    async with AssyncSessionLocal() as session:
+        async with session.begin():
+            stmt = select(DBappointment).where(DBappointment.id == appointment_id)
+            appointment_result = await session.execute(stmt)
+            appointment = appointment_result.scalar_one_or_none()
+            if not appointment:
+                raise HTTPException(status_code=415, detail="Record not found")
+            
+            if appointment.client_id != user.id:
+                raise HTTPException(status_code=403, detail="You do not have the right to delete this record")
+            if not appointment.is_active:
+                    raise HTTPException(status_code=410, detail="This entry has already been deleted")
+            appointment.is_active = False
+            appointment.status = False
+            
+            return {
+            "message": "Appointment deleted successfully",
+            "appointment": {
+                "id": appointment.id,
+                "salon_id": appointment.salon_id,
+                "master_id": appointment.master_id,
+                "service_id": appointment.service_id,
+                "date_time": appointment.date_time.isoformat(),
+                "end_time": appointment.end_time.isoformat(),
+                "status": appointment.status,
+                "comment": appointment.comment
+            }
+        }
+            
 
 
 
