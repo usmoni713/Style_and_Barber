@@ -28,8 +28,8 @@ async def add_admin_endpoint(admin_data: Admin):
     pass
 
 
-@admin_router.post("/singup_admin")
-async def singup_admin_endpoint(form_data: OAuth2PasswordRequestForm = Depends()):  
+@admin_router.post("/signin")
+async def signin_admin_endpoint(form_data: OAuth2PasswordRequestForm = Depends()):  
     async with AssyncSessionLocal() as session:
         login_value = form_data.username
         stmt = select(DBadmin).where(

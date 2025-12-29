@@ -10,8 +10,14 @@ from sqlalchemy import select
 from database.setup import AssyncSessionLocal
 from database.models import users as DBUser, admins as DBadmin
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/singin")
-
+oauth2_scheme_admin = OAuth2PasswordBearer(
+    tokenUrl="/admin/signin",
+    scheme_name="AdminAuth"
+)
+oauth2_scheme_user = OAuth2PasswordBearer(
+    tokenUrl="/signin",
+    scheme_name="UserAuth"
+)
 
 async def create_jwt_token(data:dict):
     to_encode = data.copy()
@@ -20,7 +26,7 @@ async def create_jwt_token(data:dict):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     
 
-async def get_user_id_from_token(token = Depends(oauth2_scheme)):
+async def get_user_id_from_token(token = Depends(oauth2_scheme_user)):
     try:
         decode_token = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
 
@@ -42,7 +48,7 @@ async def get_user_from_id(user_id: str = Depends(get_user_id_from_token)):
         return user
 
 
-async def get_admin_id_from_token(token = Depends(oauth2_scheme)):
+async def get_admin_id_from_token(token = Depends(oauth2_scheme_admin)):
     try:
         decode_token = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
 

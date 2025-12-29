@@ -28,9 +28,9 @@ app.add_middleware(
 )
 
 
-@app.post("/singin")
-async def singin_endpoint(form_data: OAuth2PasswordRequestForm = Depends()):
-  
+@app.post("/signin")
+async def signin_user_endpoint(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Эндпоинт для авторизации пользователей (не админов)"""
     async with AssyncSessionLocal() as session:
         login_value = form_data.username
         stmt = select(DBUser).where(
@@ -47,20 +47,7 @@ async def singin_endpoint(form_data: OAuth2PasswordRequestForm = Depends()):
             if password_valid:
                 token = await sc.create_jwt_token({"user_id": user.id})
                 return {"access_token": token, "token_type": "bearer"}
-        stmt = select(DBadmin).where(
-            or_(DBadmin.email == login_value, DBadmin.phone == login_value)
-        )
-        result = await session.execute(stmt)
-        admin = result.scalar_one_or_none()
-
-        if admin:
-            password_valid = await verify_password(
-                password=form_data.password,
-                hashed=admin.password_hash
-            )
-            if password_valid:
-                token = await sc.create_jwt_token({"admin_id": admin.id})
-                return {"access_token": token, "token_type": "bearer"}
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password"
