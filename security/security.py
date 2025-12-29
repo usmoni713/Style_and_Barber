@@ -5,12 +5,13 @@ from fastapi import Depends, HTTPException
 from config import ACCESS_TOKEN_EXPIRE_HOURS, ALGORITHM, SECRET_KEY
 
 
-from sqlalchemy import select, exists, or_, and_
+from sqlalchemy import select
 
 from database.setup import AssyncSessionLocal
-from database.models import users as DBUser, masters as DBmaster
+from database.models import users as DBUser, admins as DBadmin
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/singin")
+
 
 async def create_jwt_token(data:dict):
     to_encode = data.copy()
@@ -30,6 +31,7 @@ async def get_user_id_from_token(token = Depends(oauth2_scheme)):
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Токен устарел") 
 
+
 async def get_user_from_id(user_id: str = Depends(get_user_id_from_token)):
     async with AssyncSessionLocal() as session:
         stmt  = select(DBUser).where(DBUser.id == user_id)
@@ -38,3 +40,27 @@ async def get_user_from_id(user_id: str = Depends(get_user_id_from_token)):
         if not user:
             raise HTTPException(status_code=401, detail="Ошибка авторизации")
         return user
+
+
+async def get_admin_id_from_token(token = Depends(oauth2_scheme)):
+    try:
+        decode_token = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
+
+        return decode_token.get("admin_id")
+    
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Ошибка авторизации") 
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Токен устарел") 
+
+
+async def get_admin_from_id(admin_id: str = Depends(get_admin_id_from_token)):
+    async with AssyncSessionLocal() as session:
+        stmt  = select(DBadmin).where(DBadmin.id == admin_id)
+        result = await session.execute(stmt)
+        admin = result.scalar_one_or_none()
+        if not admin:
+            raise HTTPException(status_code=401, detail="Ошибка авторизации")
+        return admin
+
+

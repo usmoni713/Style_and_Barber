@@ -40,3 +40,21 @@ class AppointmentResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class Admin(BaseModel):   
+    phone: str | None = None
+    email: EmailStr
+    password: str
+    name: str
+    lastname: str|None = None
+    salons_id: list[int] 
+
+
+class SalonEdit(BaseModel):
+    id: int
+    title: str
+    address: str
+    phone: str
+    photo_url: str
+

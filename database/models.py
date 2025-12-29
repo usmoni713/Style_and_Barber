@@ -51,6 +51,10 @@ class salons(Base, BaseMixin):
     title:Mapped[str]
     address:Mapped[str]
     phone : Mapped[str] = mapped_column(String(255))
+    photo_url:Mapped[str]
+    masters = relationship("masters", secondary="master_salon", back_populates="salons")
+    appointments = relationship("appointments", back_populates="salon")
+    admins = relationship("admins",secondary="admin_salon", back_populates="salons")
     # work_schedule:Mapped[dict] 
 #     {
 #   "monday": { "start": "09:00", "end": "18:00", "break_start": "13:00", "break_end": "14:00" },
@@ -61,12 +65,6 @@ class salons(Base, BaseMixin):
 #   "saturday": null,
 #   "sunday": null
 # }
-    photo_url:Mapped[str]
-    
-    # салон может иметь много мастеров
-
-    masters = relationship("masters", secondary="master_salon", back_populates="salons")
-    appointments = relationship("appointments", back_populates="salon")
     
 
 class masters(Base, BaseMixin):
@@ -139,6 +137,35 @@ class appointments(Base, BaseMixin):
     
 
   
+
+ 
+class admins(Base,BaseMixin):
+    __tablename__ = "admins"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    phone : Mapped[str | None] = mapped_column(String(255), unique=True)
+    email : Mapped[str] = mapped_column(String(255), unique=True)
+    password_hash: Mapped[str]
+    first_name: Mapped[str]
+    last_name: Mapped[str | None]
+    super_admin: Mapped[bool | None]
+    
+    salons = relationship("salons",secondary="admin_salon", back_populates="admins")
+    # def __repr__(self) -> str:
+    #     return f"User(id={self.id!r}, phone={self.name!r}, fullname={self.fullname!r})"
+
+
+
+
+ 
+class admin_salon(Base):
+    __tablename__ = "admin_salon"
+    __table_args__ = (
+        PrimaryKeyConstraint("admin_id", "salon_id", name="pk_admin_salon"),
+        UniqueConstraint("admin_id", "salon_id", name="uq_admin_salon_pair"),
+    )
+    admin_id: Mapped[int] = mapped_column(ForeignKey("admins.id"))
+    salon_id: Mapped[int] = mapped_column(ForeignKey("salons.id"))
+
 # class working_hours(Base):
 #     __tablename__ = "working_hours"
 #     id: Mapped[int] = mapped_column(primary_key=True)
