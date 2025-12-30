@@ -92,3 +92,20 @@ class UserEdit(BaseModel):
     email: EmailStr
     phone: str | None = None
 
+
+class AdminEdit(BaseModel):
+    """Модель для редактирования администратора"""
+    first_name: str
+    last_name: str | None = None
+    email: EmailStr
+    phone: str | None = None
+    super_admin: bool = False
+    salons_id: list[int]
+
+
+class MasterEdit(BaseModel):
+    """Модель для редактирования мастера"""
+    photo: str
+    specialization: str
+    about: str
+

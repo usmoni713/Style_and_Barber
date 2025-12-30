@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from models.models import Admin, SalonEdit, SalonCreate, ServiceCreate, UserEdit, User
+from models.models import Admin, SalonEdit, SalonCreate, ServiceCreate, UserEdit, User, AdminEdit, MasterEdit
 from sqlalchemy import delete, select, or_, and_, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from database.setup import AssyncSessionLocal
 from database.models import( users as DBUser,                            
                             appointments as DBappointment, 
-                            salons as DBsalon,    
+                            salons as DBsalon,
                             services as DBservice,
+                            masters as DBmaster,
                             master_salon,
                             admins as DBadmin, 
                             admin_salon as DBadmin_salon
@@ -512,5 +513,233 @@ async def delete_user_super_admin_endpoint(user_id: int, admin: DBadmin = Depend
                 )
             
             return {"message": f"User {user_id} deleted successfully"}
+
+
+@admin_router.get("/users")
+async def get_all_users_super_admin_endpoint(admin: DBadmin = Depends(sc.get_super_admin_from_id)):
+    """Получение списка всех пользователей (только для super_admin)"""
+    async with AssyncSessionLocal() as session:
+        stmt = select(DBUser).where(DBUser.is_active == True)
+        result = await session.execute(stmt)
+        users = result.scalars().all()
+        
+        users_list = []
+        for user in users:
+            users_list.append({
+                "id": user.id,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "phone": user.phone
+            })
+        return {"users": users_list}
+
+
+@admin_router.get("/admins")
+async def get_all_admins_super_admin_endpoint(admin: DBadmin = Depends(sc.get_super_admin_from_id)):
+    """Получение списка всех администраторов (только для super_admin)"""
+    async with AssyncSessionLocal() as session:
+        stmt = select(DBadmin).where(DBadmin.is_active == True)
+        result = await session.execute(stmt)
+        admins = result.scalars().all()
+        
+        admins_list = []
+        for admin_item in admins:
+            salons_stmt = select(DBsalon).join(DBadmin_salon, DBsalon.id == DBadmin_salon.salon_id).where(DBadmin_salon.admin_id == admin_item.id)
+            salons_result = await session.execute(salons_stmt)
+            salons = salons_result.scalars().all()
+            
+            admins_list.append({
+                "id": admin_item.id,
+                "first_name": admin_item.first_name,
+                "last_name": admin_item.last_name,
+                "email": admin_item.email,
+                "phone": admin_item.phone,
+                "super_admin": admin_item.super_admin,
+                "salons": [salon.id for salon in salons]
+            })
+        return {"admins": admins_list}
+
+
+@admin_router.get("/salons/{salon_id}/admins")
+async def get_salon_admins_super_admin_endpoint(salon_id: int, admin: DBadmin = Depends(sc.get_super_admin_from_id)):
+    """Получение списка администраторов конкретного салона (только для super_admin)"""
+    async with AssyncSessionLocal() as session:
+        salon_stmt = select(DBsalon).where(DBsalon.id == salon_id)
+        salon_result = await session.execute(salon_stmt)
+        salon = salon_result.scalar_one_or_none()
+        
+        if not salon:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Salon not found"
+            )
+        
+        stmt = (
+            select(DBadmin)
+            .join(DBadmin_salon, DBadmin.id == DBadmin_salon.admin_id)
+            .where(and_(DBadmin_salon.salon_id == salon_id, DBadmin.is_active == True))
+        )
+        result = await session.execute(stmt)
+        admins = result.scalars().all()
+        
+        admins_list = []
+        for admin_item in admins:
+            admins_list.append({
+                "id": admin_item.id,
+                "first_name": admin_item.first_name,
+                "last_name": admin_item.last_name,
+                "email": admin_item.email,
+                "phone": admin_item.phone,
+                "super_admin": admin_item.super_admin
+            })
+        return {"admins": admins_list}
+
+
+@admin_router.get("/masters")
+async def get_all_masters_super_admin_endpoint(admin: DBadmin = Depends(sc.get_super_admin_from_id)):
+    """Получение списка всех мастеров (только для super_admin)"""
+    masters = await fn.get_masters()
+    return {"masters": masters}
+
+
+@admin_router.get("/salons/{salon_id}/masters")
+async def get_salon_masters_super_admin_endpoint(salon_id: int, admin: DBadmin = Depends(sc.get_super_admin_from_id)):
+    """Получение списка мастеров конкретного салона (только для super_admin)"""
+    async with AssyncSessionLocal() as session:
+        salon_stmt = select(DBsalon).where(DBsalon.id == salon_id)
+        salon_result = await session.execute(salon_stmt)
+        salon = salon_result.scalar_one_or_none()
+        
+        if not salon:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Salon not found"
+            )
+    
+    masters = await fn.get_masters(salon_id=salon_id)
+    return {"masters": masters}
+
+
+@admin_router.put("/admins/{admin_id}")
+async def update_admin_super_admin_endpoint(admin_id: int, admin_data: AdminEdit, admin: DBadmin = Depends(sc.get_super_admin_from_id)):
+    """Редактирование администратора (только для super_admin)"""
+    async with AssyncSessionLocal() as session:
+        async with session.begin():
+            stmt = select(DBadmin).where(DBadmin.id == admin_id)
+            result = await session.execute(stmt)
+            admin_to_update = result.scalar_one_or_none()
+            
+            if not admin_to_update:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Admin not found"
+                )
+            
+            if admin_data.email != admin_to_update.email:
+                stmt_check = select(DBadmin).where(and_(DBadmin.email == admin_data.email, DBadmin.id != admin_id))
+                result_check = await session.execute(stmt_check)
+                if result_check.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Admin with this email already exists"
+                    )
+            
+            if admin_data.phone and admin_data.phone != admin_to_update.phone:
+                stmt_check = select(DBadmin).where(and_(DBadmin.phone == admin_data.phone, DBadmin.id != admin_id))
+                result_check = await session.execute(stmt_check)
+                if result_check.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Admin with this phone already exists"
+                    )
+            
+            admin_to_update.first_name = admin_data.first_name
+            admin_to_update.last_name = admin_data.last_name
+            admin_to_update.email = admin_data.email
+            admin_to_update.phone = admin_data.phone
+            admin_to_update.super_admin = admin_data.super_admin
+            
+            # Обновляем связи с салонами
+            stmt_salons = select(DBsalon).where(DBsalon.id.in_(admin_data.salons_id))
+            result_salons = await session.execute(stmt_salons)
+            salons = result_salons.scalars().all()
+            admin_to_update.salons = salons
+            
+            return {
+                "message": "Admin updated successfully",
+                "admin": {
+                    "id": admin_to_update.id,
+                    "first_name": admin_to_update.first_name,
+                    "last_name": admin_to_update.last_name,
+                    "email": admin_to_update.email,
+                    "phone": admin_to_update.phone,
+                    "super_admin": admin_to_update.super_admin,
+                    "salons": [salon.id for salon in salons]
+                }
+            }
+
+
+@admin_router.put("/masters/{master_id}")
+async def update_master_super_admin_endpoint(master_id: int, master_data: MasterEdit, admin: DBadmin = Depends(sc.get_super_admin_from_id)):
+    """Редактирование мастера (только для super_admin)"""
+    async with AssyncSessionLocal() as session:
+        async with session.begin():
+            stmt = select(DBmaster).where(DBmaster.id == master_id)
+            result = await session.execute(stmt)
+            master = result.scalar_one_or_none()
+            
+            if not master:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Master not found"
+                )
+            
+            master.photo = master_data.photo
+            master.specialization = master_data.specialization
+            master.about = master_data.about
+            
+            return {
+                "message": "Master updated successfully",
+                "master": {
+                    "id": master.id,
+                    "user_id": master.user_id,
+                    "photo": master.photo,
+                    "specialization": master.specialization,
+                    "about": master.about
+                }
+            }
+
+
+@admin_router.get("/salon/{salon_id}/users")
+async def get_salon_users_admin_endpoint(salon_id: int, admin: DBadmin = Depends(sc.get_admin_from_id)):
+    """Получение списка пользователей с записями в конкретном салоне (только для администратора с доступом к салону)"""
+    async with AssyncSessionLocal() as session:
+        salon = await fn.get_salon_for_admin(admin_id=admin.id, salon_id=salon_id, session=session)
+        
+        stmt = (
+            select(DBUser)
+            .join(DBappointment, DBUser.id == DBappointment.client_id)
+            .where(
+                and_(
+                    DBappointment.salon_id == salon_id,
+                    DBUser.is_active == True
+                )
+            )
+            .distinct()
+        )
+        result = await session.execute(stmt)
+        users = result.scalars().all()
+        
+        users_list = []
+        for user in users:
+            users_list.append({
+                "id": user.id,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "phone": user.phone
+            })
+        return {"users": users_list}
 
         
