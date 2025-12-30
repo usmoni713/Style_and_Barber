@@ -47,8 +47,10 @@ class Admin(BaseModel):
     email: EmailStr
     password: str
     name: str
-    lastname: str|None = None
+    last_name: str|None = None
+    super_admin : bool = False
     salons_id: list[int] 
+
 
 
 class SalonEdit(BaseModel):

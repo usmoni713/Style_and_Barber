@@ -1,21 +1,10 @@
 from fastapi import Depends, HTTPException, status, APIRouter
-# from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, timedelta
 
-from models.models import User, AppointmentCreate, AppointmentResponse
+from models.models import User, AppointmentCreate
 
-from sqlalchemy import select, exists, or_, and_
-
-from database.setup import AssyncSessionLocal
-from database.models import users as DBUser, masters as DBmaster, appointments as DBappointment, salons as DBsalon, services as DBservice, master_salon
+from database.models import users as DBUser
 from security import security as sc
-# asyncpg.exceptions.UniqueViolationError
-# sqlalchemy.exc.IntegrityError
-from sqlalchemy.exc import IntegrityError
 from fn import fns as fn
-from security.additional_functions import verify_password
 
 
 
@@ -23,9 +12,10 @@ user_router = APIRouter(prefix="/user")
 
 
 
-@user_router.post("/singup")
+@user_router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def add_user_endpoint(user: User):
     await fn.create_user(user)
+    return {"message": "User created successfully"}
   
 @user_router.get("/appointments", response_model=dict)
 async def show_appointments_endpoint(user: DBUser = Depends(sc.get_user_from_id)):
@@ -43,7 +33,7 @@ async def add_appointment_endpoint(
    return answer
 
 
-@user_router.delete("/del_appointment")
+@user_router.delete("/appointments/{appointment_id}")
 async def delete_appointment_endpoint(
     appointment_id: int,
     user: DBUser = Depends(sc.get_user_from_id)

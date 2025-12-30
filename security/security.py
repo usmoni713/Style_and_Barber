@@ -67,6 +67,14 @@ async def get_admin_from_id(admin_id: str = Depends(get_admin_id_from_token)):
         admin = result.scalar_one_or_none()
         if not admin:
             raise HTTPException(status_code=401, detail="Ошибка авторизации")
+        if not admin.is_active:
+            raise HTTPException(status_code=403, detail="your accaunt has been baned")
         return admin
+
+
+async def get_super_admin_from_id(admin: DBadmin = Depends(get_admin_from_id)):
+    if not admin.super_admin:
+        raise HTTPException(status_code=403, detail="you are not super_admin")
+    return admin
 
 

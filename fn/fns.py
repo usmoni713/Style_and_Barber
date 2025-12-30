@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import HTTPException, status
 from datetime import datetime, timedelta
 
 from models.models import User, AppointmentCreate
@@ -69,21 +69,21 @@ async def add_apponiment(appointment_data:AppointmentCreate, user_id:int):
             salon = salon_result.scalar_one_or_none()
             
             if not salon:
-                raise HTTPException(status_code=404, detail="Salon not found")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salon not found")
             
             master_stmt = select(DBmaster).where(DBmaster.id == appointment_data.master_id)
             master_result = await session.execute(master_stmt)
             master = master_result.scalar_one_or_none()
             
             if not master:
-                raise HTTPException(status_code=404, detail="Master not found")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Master not found")
             
             service_stmt = select(DBservice).where(DBservice.id == appointment_data.service_id)
             service_result = await session.execute(service_stmt)
             service = service_result.scalar_one_or_none()
             
             if not service:
-                raise HTTPException(status_code=404, detail="Service not found")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
             
             
             existing_stmt = select(DBappointment).where(
@@ -97,7 +97,7 @@ async def add_apponiment(appointment_data:AppointmentCreate, user_id:int):
             existing = existing_result.scalar_one_or_none()
             
             if existing:
-                raise HTTPException(status_code=409, detail="This time slot is already booked")
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This time slot is already booked")
             
             
             end_time = appointment_data.date_time + timedelta(minutes=service.duration_minutes)
@@ -113,7 +113,7 @@ async def add_apponiment(appointment_data:AppointmentCreate, user_id:int):
             chec_if_not_free_time_result = await session.execute(stmt)
             chec_if_not_free_time = chec_if_not_free_time_result.scalar()
             if chec_if_not_free_time:
-                raise HTTPException(status_code=409,detail="This time slot is already booked" )    
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This time slot is already booked")    
             appointment = DBappointment(
                 client_id=user_id,
                 salon_id=appointment_data.salon_id,
@@ -212,10 +212,8 @@ async def get_services():
 
 
 async def delete_appointment(
-   
     appointment_id: int,
-    user: DBUser = Depends(sc.get_user_from_id)
-
+    user: DBUser
 ):
     async with AssyncSessionLocal() as session:
         async with session.begin():
@@ -223,12 +221,12 @@ async def delete_appointment(
             appointment_result = await session.execute(stmt)
             appointment = appointment_result.scalar_one_or_none()
             if not appointment:
-                raise HTTPException(status_code=415, detail="Record not found")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
             
             if appointment.client_id != user.id:
-                raise HTTPException(status_code=403, detail="You do not have the right to delete this record")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have the right to delete this record")
             if not appointment.is_active:
-                    raise HTTPException(status_code=410, detail="This entry has already been deleted")
+                raise HTTPException(status_code=status.HTTP_410_GONE, detail="This appointment has already been deleted")
             appointment.is_active = False
             appointment.status = False
             
