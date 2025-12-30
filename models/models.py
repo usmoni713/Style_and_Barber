@@ -53,10 +53,42 @@ class Admin(BaseModel):
 
 
 
+class SalonCreate(BaseModel):
+    """Модель для создания салона"""
+    title: str
+    address: str
+    phone: str
+    photo_url: str
+
+
 class SalonEdit(BaseModel):
+    """Модель для редактирования салона"""
     id: int
     title: str
     address: str
     phone: str
     photo_url: str
+
+
+class ServiceCreate(BaseModel):
+    """Модель для создания услуги"""
+    description: str
+    duration_minutes: int
+    base_price: int
+
+
+class ServiceEdit(BaseModel):
+    """Модель для редактирования услуги"""
+    id: int
+    description: str
+    duration_minutes: int
+    base_price: int
+
+
+class UserEdit(BaseModel):
+    """Модель для редактирования пользователя (без пароля)"""
+    first_name: str
+    last_name: str | None = None
+    email: EmailStr
+    phone: str | None = None
 
