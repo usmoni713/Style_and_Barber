@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
+from datetime import datetime, date, time, timedelta
 
 from models.models import User, AppointmentCreate
 
@@ -292,4 +292,119 @@ async def get_salon_for_admin(admin_id:int, salon_id:int, session:AsyncSession, 
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="you do not have access to this salon.")
                 return salon
 
+
+
+async def get_free_slots(
+    salon_id: int,
+    service_id: int,
+    target_date: date,
+    master_id: int | None = None,
+    min_hours_before: int = 2,
+) -> list[dict]:
+    """
+    Возвращает свободные слоты.
+    Если master_id задан — слоты только для него.
+    Если master_id не задан или равен 0 — слоты для всех мастеров салона.
+    Рабочий день пока фиксированный: 10:00–19:00, обед 13:00–14:00.
+    """
+    async with AssyncSessionLocal() as session:
+        salon_stmt = select(DBsalon).where(DBsalon.id == salon_id, DBsalon.is_active == True)
+        salon_result = await session.execute(salon_stmt)
+        salon = salon_result.scalar_one_or_none()
+        if not salon:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salon not found")
+
+        service_stmt = select(DBservice).where(DBservice.id == service_id, DBservice.is_active == True)
+        service_result = await session.execute(service_stmt)
+        service = service_result.scalar_one_or_none()
+        if not service:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+
+        service_duration = timedelta(minutes=service.duration_minutes)
+
+        
+        if master_id and master_id > 0:
+            master_ids_stmt = select(DBmaster.id).where(DBmaster.id == master_id, DBmaster.is_active == True)
+        else:
+            master_ids_stmt = (
+                select(DBmaster.id)
+                .join(master_salon, DBmaster.id == master_salon.master_id)
+                .where(
+                    and_(
+                        DBmaster.is_active == True,
+                        master_salon.salon_id == salon_id
+                    )
+                )
+            )
+        master_ids_result = await session.execute(master_ids_stmt)
+        master_ids = [row[0] for row in master_ids_result.fetchall()]
+        if not master_ids:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Masters not found")
+
+        work_start = datetime.combine(target_date, time(10, 0))
+        work_end = datetime.combine(target_date, time(19, 0))
+        lunch_start = datetime.combine(target_date, time(13, 0))
+        lunch_end = datetime.combine(target_date, time(14, 0))
+        now = datetime.now()
+        min_start_time = now + timedelta(hours=min_hours_before)
+        day_start = datetime.combine(target_date, time(0, 0))
+        day_end = day_start + timedelta(days=1)
+
+        def is_overlaps(start: datetime, end: datetime, intervals: list[tuple[datetime, datetime]]) -> bool:
+            for s, e in intervals:
+                if start < e and end > s:
+                    return True
+            return False
+
+        masters_slots: list[dict] = []
+
+        for m_id in master_ids:
+            appointments_stmt = select(DBappointment).where(
+                and_(
+                    DBappointment.salon_id == salon_id,
+                    DBappointment.master_id == m_id,
+                    DBappointment.is_active == True,
+                    DBappointment.date_time >= day_start,
+                    DBappointment.date_time < day_end,
+                )
+            )
+            appointments_result = await session.execute(appointments_stmt)
+            appointments: list[DBappointment] = appointments_result.scalars().all()
+
+            busy_intervals: list[tuple[datetime, datetime]] = []
+            for apt in appointments:
+                busy_intervals.append((apt.date_time, apt.end_time))
+
+            free_slots: list[dict] = []
+            current_start = work_start
+
+            while current_start + service_duration <= work_end:
+                current_end = current_start + service_duration
+
+                if current_start < min_start_time:
+                    current_start += timedelta(minutes=15)
+                    continue
+
+                if current_start < lunch_end and current_end > lunch_start:
+                    current_start = lunch_end
+                    continue
+
+                if not is_overlaps(current_start, current_end, busy_intervals):
+                    free_slots.append(
+                        {
+                            "start": current_start.isoformat(),
+                            "end": current_end.isoformat(),
+                        }
+                    )
+
+                current_start += timedelta(minutes=15)
+
+            masters_slots.append(
+                {
+                    "master_id": m_id,
+                    "slots": free_slots,
+                }
+            )
+
+        return masters_slots
 
