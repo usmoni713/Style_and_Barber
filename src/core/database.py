@@ -1,9 +1,8 @@
-import asyncio
-
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from  models import Base
+from  src.models import Base
 
-from config import DATABASE_URL
+from .config import DATABASE_URL
+
 
 engine = create_async_engine(
     DATABASE_URL, 
@@ -18,19 +17,7 @@ AssyncSessionLocal = async_sessionmaker(
     class_=AsyncSession
 ) 
 
-async def init_models():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-
-
-async def test():
+async def get_db_session():
     async with AssyncSessionLocal() as session:
-        async with session.begin():
-            pass
+        yield session
 
-        
-if __name__ == "__main__":
-    asyncio.run(init_models())
- 

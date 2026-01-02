@@ -2,13 +2,13 @@ import jwt
 import datetime
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException
-from config import ACCESS_TOKEN_EXPIRE_HOURS, ALGORITHM, SECRET_KEY
+from .config import ACCESS_TOKEN_EXPIRE_HOURS, ALGORITHM, SECRET_KEY
 
 
 from sqlalchemy import select
 
-from database.setup import AssyncSessionLocal
-from database.models import users as DBUser, admins as DBadmin
+from .database import AssyncSessionLocal
+from src.models import users as DBUser, admins as DBadmin
 
 oauth2_scheme_admin = OAuth2PasswordBearer(
     tokenUrl="/admin/signin",
