@@ -48,8 +48,23 @@ class SalonService:
             })
         return salons_list
     
-    async def get_masters(self, salon_id:int | None = None):
-        if salon_id: 
+    async def get_masters(self, salon_id:int | None = None, service_id:int | None = None):
+        from src.models import master_service as DBmaster_service
+        
+        if salon_id and service_id:
+            stmt = (
+                select(DBmaster)
+                .join(DBmaster_salon, DBmaster.id == DBmaster_salon.master_id)
+                .join(DBmaster_service, DBmaster.id == DBmaster_service.master_id)
+                .where(
+                    and_(
+                        DBmaster.is_active == True,
+                        DBmaster_salon.salon_id == salon_id,
+                        DBmaster_service.service_id == service_id
+                    )
+                )
+            )
+        elif salon_id:
             stmt = (
                 select(DBmaster)
                 .join(DBmaster_salon, DBmaster.id == DBmaster_salon.master_id)
@@ -60,8 +75,20 @@ class SalonService:
                     )
                 )
             )
+        elif service_id:
+            stmt = (
+                select(DBmaster)
+                .join(DBmaster_service, DBmaster.id == DBmaster_service.master_id)
+                .where(
+                    and_(
+                        DBmaster.is_active == True,
+                        DBmaster_service.service_id == service_id
+                    )
+                )
+            )
         else:
             stmt = select(DBmaster).where(DBmaster.is_active == True)
+        
         result = await self.session.execute(stmt)
         masters = result.scalars().all()
         
