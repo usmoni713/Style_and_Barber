@@ -7,115 +7,243 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>💇 Стиль и Барбер</h1>
-            <p class="subtitle">Система онлайн-записи</p>
-        </header>
-
-        <!-- Форма авторизации -->
-        <div id="loginSection" class="card">
-            <h2>Вход в систему</h2>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">Email или телефон:</label>
-                    <input type="text" id="username" name="username" required placeholder="email@example.com или +79991234567">
-                </div>
-                <div class="form-group">
-                    <label for="password">Пароль:</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Войти</button>
-            </form>
-            <div id="loginError" class="error-message"></div>
+    <!-- Навигация -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">💇 Стиль и Барбер</div>
+            <div class="nav-links" id="navLinks">
+                <a href="#" class="nav-link" data-page="home">Главная</a>
+                <a href="#" class="nav-link" data-page="booking" id="bookingLink">Записаться</a>
+                <a href="#" class="nav-link" data-page="login" id="loginLink">Войти</a>
+                <a href="#" class="nav-link" data-page="profile" id="profileLink" style="display: none;">Личный кабинет</a>
+                <a href="#" class="nav-link" id="logoutLink" style="display: none;">Выйти</a>
+            </div>
         </div>
+    </nav>
 
-        <!-- Форма регистрации -->
-        <div id="registerSection" class="card" style="display: none;">
-            <h2>Регистрация</h2>
-            <form id="registerForm">
-                <div class="form-group">
-                    <label for="regName">Имя:</label>
-                    <input type="text" id="regName" name="name" required>
+    <!-- Главная страница -->
+    <div id="homePage" class="page active">
+        <div class="container">
+            <header class="hero">
+                <h1>💇 Стиль и Барбер</h1>
+                <p class="subtitle">Система онлайн-записи</p>
+                <p class="hero-description">Запишитесь к лучшим мастерам в удобное для вас время</p>
+                <a href="#" class="btn btn-primary btn-large" data-page="booking">Записаться онлайн</a>
+            </header>
+
+            <section class="advantages">
+                <h2>Преимущества онлайн-записи</h2>
+                <div class="advantages-grid">
+                    <div class="advantage-card">
+                        <div class="advantage-icon">⏰</div>
+                        <h3>Удобное время</h3>
+                        <p>Выбирайте время записи, которое подходит именно вам</p>
+                    </div>
+                    <div class="advantage-card">
+                        <div class="advantage-icon">👨‍💼</div>
+                        <h3>Выбор мастера</h3>
+                        <p>Записывайтесь к конкретному мастеру или выберите любого свободного</p>
+                    </div>
+                    <div class="advantage-card">
+                        <div class="advantage-icon">📱</div>
+                        <h3>Онлайн 24/7</h3>
+                        <p>Записывайтесь в любое время, не выходя из дома</p>
+                    </div>
+                    <div class="advantage-card">
+                        <div class="advantage-icon">✅</div>
+                        <h3>Мгновенное подтверждение</h3>
+                        <p>Получайте подтверждение записи сразу после бронирования</p>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="regLastname">Фамилия:</label>
-                    <input type="text" id="regLastname" name="lastname">
+            </section>
+
+            <section class="contacts">
+                <h2>Наши салоны</h2>
+                <div id="salonsPreview" class="salons-preview">
+                    <p class="loading">Загрузка информации о салонах...</p>
                 </div>
-                <div class="form-group">
-                    <label for="regEmail">Email:</label>
-                    <input type="email" id="regEmail" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="regPhone">Телефон:</label>
-                    <input type="tel" id="regPhone" name="phone" placeholder="+79991234567">
-                </div>
-                <div class="form-group">
-                    <label for="regPassword">Пароль:</label>
-                    <input type="password" id="regPassword" name="password" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
-            </form>
-            <div id="registerError" class="error-message"></div>
-            <p class="switch-form">
-                Уже есть аккаунт? <a href="#" id="showLogin">Войти</a>
-            </p>
+            </section>
         </div>
+    </div>
 
-        <!-- Основной контент после авторизации -->
-        <div id="mainContent" style="display: none;">
-            <div class="user-info">
-                <span id="userName"></span>
-                <button id="logoutBtn" class="btn btn-secondary">Выйти</button>
+    <!-- Страница входа/регистрации -->
+    <div id="loginPage" class="page">
+        <div class="container">
+            <div class="card">
+                <h2>Вход в систему</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Email или телефон:</label>
+                        <input type="text" id="username" name="username" required placeholder="email@example.com или +79991234567">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                </form>
+                <div id="loginError" class="error-message"></div>
+                <p class="switch-form">
+                    Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a>
+                </p>
             </div>
 
-            <nav class="tabs">
-                <button class="tab-btn active" data-tab="appointments">Мои записи</button>
-                <button class="tab-btn" data-tab="new-appointment">Новая запись</button>
-            </nav>
+            <div class="card" id="registerCard" style="display: none;">
+                <h2>Регистрация</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="regName">Имя:</label>
+                        <input type="text" id="regName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regLastname">Фамилия:</label>
+                        <input type="text" id="regLastname" name="lastname">
+                    </div>
+                    <div class="form-group">
+                        <label for="regEmail">Email:</label>
+                        <input type="email" id="regEmail" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regPhone">Телефон:</label>
+                        <input type="tel" id="regPhone" name="phone" placeholder="+79991234567">
+                    </div>
+                    <div class="form-group">
+                        <label for="regPassword">Пароль:</label>
+                        <input type="password" id="regPassword" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                </form>
+                <div id="registerError" class="error-message"></div>
+                <p class="switch-form">
+                    Уже есть аккаунт? <a href="#" id="showLogin">Войти</a>
+                </p>
+            </div>
+        </div>
+    </div>
 
-            <!-- Вкладка: Мои записи -->
-            <div id="appointmentsTab" class="tab-content active">
+    <!-- Страница записи (многошаговый процесс) -->
+    <div id="bookingPage" class="page">
+        <div class="container">
+            <div class="booking-container">
+                <div class="booking-steps">
+                    <div class="step" data-step="1">
+                        <div class="step-number">1</div>
+                        <div class="step-label">Салон</div>
+                    </div>
+                    <div class="step" data-step="2">
+                        <div class="step-number">2</div>
+                        <div class="step-label">Услуга</div>
+                    </div>
+                    <div class="step" data-step="3">
+                        <div class="step-number">3</div>
+                        <div class="step-label">Мастер</div>
+                    </div>
+                    <div class="step" data-step="4">
+                        <div class="step-number">4</div>
+                        <div class="step-label">Дата и время</div>
+                    </div>
+                    <div class="step" data-step="5">
+                        <div class="step-number">5</div>
+                        <div class="step-label">Подтверждение</div>
+                    </div>
+                </div>
+
+                <!-- Шаг 1: Выбор салона -->
+                <div class="booking-step-content" id="step1">
+                    <h2>Выберите салон</h2>
+                    <div id="salonsList" class="salons-list">
+                        <p class="loading">Загрузка салонов...</p>
+                    </div>
+                </div>
+
+                <!-- Шаг 2: Выбор услуги -->
+                <div class="booking-step-content" id="step2" style="display: none;">
+                    <h2>Выберите услугу</h2>
+                    <div id="servicesList" class="services-list">
+                        <p class="loading">Загрузка услуг...</p>
+                    </div>
+                </div>
+
+                <!-- Шаг 3: Выбор мастера -->
+                <div class="booking-step-content" id="step3" style="display: none;">
+                    <h2>Выберите мастера</h2>
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" name="masterChoice" value="any" id="anyMaster" checked>
+                            Любой свободный мастер
+                        </label>
+                    </div>
+                    <div id="mastersList" class="masters-list">
+                        <p class="loading">Загрузка мастеров...</p>
+                    </div>
+                </div>
+
+                <!-- Шаг 4: Выбор даты и времени -->
+                <div class="booking-step-content" id="step4" style="display: none;">
+                    <h2>Выберите дату и время</h2>
+                    <div class="form-group">
+                        <label for="appointmentDate">Дата:</label>
+                        <input type="date" id="appointmentDate" required min="">
+                    </div>
+                    <div id="timeSlots" class="time-slots">
+                        <p>Выберите дату для просмотра доступного времени</p>
+                    </div>
+                </div>
+
+                <!-- Шаг 5: Подтверждение -->
+                <div class="booking-step-content" id="step5" style="display: none;">
+                    <h2>Подтверждение записи</h2>
+                    <div id="bookingSummary" class="booking-summary"></div>
+                    <form id="bookingForm">
+                        <div id="userDataFields"></div>
+                        <div class="form-group">
+                            <label for="bookingComment">Комментарий (необязательно):</label>
+                            <textarea id="bookingComment" name="comment" rows="3" placeholder="Дополнительная информация..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Подтвердить запись</button>
+                    </form>
+                    <div id="bookingError" class="error-message"></div>
+                </div>
+
+                <!-- Шаг 6: Успех -->
+                <div class="booking-step-content" id="step6" style="display: none;">
+                    <div class="success-page">
+                        <div class="success-icon">✅</div>
+                        <h2>Запись успешно создана!</h2>
+                        <div id="successDetails" class="success-details"></div>
+                        <div class="success-actions">
+                            <a href="#" class="btn btn-primary" data-page="home">На главную</a>
+                            <a href="#" class="btn btn-secondary" data-page="profile">В личный кабинет</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="booking-navigation">
+                    <button id="prevBtn" class="btn btn-secondary" style="display: none;">Назад</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Личный кабинет -->
+    <div id="profilePage" class="page">
+        <div class="container">
+            <div class="card">
+                <h2>Личный кабинет</h2>
+                <div class="user-profile">
+                    <div class="profile-info">
+                        <h3>Профиль</h3>
+                        <div id="userProfileInfo"></div>
+                        <button id="editProfileBtn" class="btn btn-secondary">Редактировать профиль</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <h2>Мои записи</h2>
                 <div id="appointmentsList" class="appointments-list">
                     <p class="loading">Загрузка...</p>
                 </div>
-            </div>
-
-            <!-- Вкладка: Новая запись -->
-            <div id="newAppointmentTab" class="tab-content">
-                <h2>Создать новую запись</h2>
-                <form id="newAppointmentForm" class="appointment-form">
-                    <div class="form-group">
-                        <label for="salonSelect">Салон:</label>
-                        <select id="salonSelect" name="salon_id" required>
-                            <option value="">Выберите салон...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="serviceSelect">Услуга:</label>
-                        <select id="serviceSelect" name="service_id" required>
-                            <option value="">Выберите услугу...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="masterSelect">Мастер:</label>
-                        <select id="masterSelect" name="master_id" required>
-                            <option value="">Выберите мастера...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="dateTime">Дата и время:</label>
-                        <input type="datetime-local" id="dateTime" name="date_time" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="comment">Комментарий (необязательно):</label>
-                        <textarea id="comment" name="comment" rows="3" placeholder="Дополнительная информация..."></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Создать запись</button>
-                </form>
-                <div id="appointmentError" class="error-message"></div>
-                <div id="appointmentSuccess" class="success-message"></div>
             </div>
         </div>
     </div>
@@ -123,4 +251,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-

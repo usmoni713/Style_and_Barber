@@ -1,14 +1,45 @@
 // Конфигурация API
 const API_BASE_URL = 'http://localhost:8000';
 
+// Состояние приложения
+const appState = {
+    currentPage: 'home',
+    currentStep: 1,
+    bookingData: {
+        salon_id: null,
+        service_id: null,
+        master_id: null,
+        date: null,
+        time: null
+    },
+    user: null,
+    token: null
+};
+
 // Утилиты для работы с localStorage
 const storage = {
     getToken: () => localStorage.getItem('access_token'),
-    setToken: (token) => localStorage.setItem('access_token', token),
-    removeToken: () => localStorage.removeItem('access_token'),
-    getUser: () => JSON.parse(localStorage.getItem('user') || '{}'),
-    setUser: (user) => localStorage.setItem('user', JSON.stringify(user)),
-    removeUser: () => localStorage.removeItem('user')
+    setToken: (token) => {
+        localStorage.setItem('access_token', token);
+        appState.token = token;
+    },
+    removeToken: () => {
+        localStorage.removeItem('access_token');
+        appState.token = null;
+    },
+    getUser: () => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        appState.user = user;
+        return user;
+    },
+    setUser: (user) => {
+        localStorage.setItem('user', JSON.stringify(user));
+        appState.user = user;
+    },
+    removeUser: () => {
+        localStorage.removeItem('user');
+        appState.user = null;
+    }
 };
 
 // Функция для выполнения API запросов
@@ -42,6 +73,79 @@ async function apiRequest(url, options = {}) {
     }
 }
 
+// Навигация между страницами
+function showPage(pageName) {
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    
+    const targetPage = document.getElementById(`${pageName}Page`);
+    if (targetPage) {
+        targetPage.classList.add('active');
+        appState.currentPage = pageName;
+        updateNavigation();
+        
+        // Загружаем данные для страницы
+        if (pageName === 'home') {
+            loadSalonsPreview();
+        } else if (pageName === 'profile') {
+            if (storage.getToken()) {
+                loadUserProfile();
+                loadAppointments();
+            } else {
+                showPage('login');
+            }
+        } else if (pageName === 'booking') {
+            if (!storage.getToken()) {
+                if (confirm('Для записи необходимо войти в систему. Войти сейчас?')) {
+                    showPage('login');
+                } else {
+                    showPage('home');
+                }
+                return;
+            }
+            resetBooking();
+            loadBookingStep(1);
+        }
+    }
+}
+
+function updateNavigation() {
+    const token = storage.getToken();
+    const loginLink = document.getElementById('loginLink');
+    const profileLink = document.getElementById('profileLink');
+    const logoutLink = document.getElementById('logoutLink');
+    
+    if (token) {
+        loginLink.style.display = 'none';
+        profileLink.style.display = 'inline-block';
+        logoutLink.style.display = 'inline-block';
+    } else {
+        loginLink.style.display = 'inline-block';
+        profileLink.style.display = 'none';
+        logoutLink.style.display = 'none';
+    }
+}
+
+// Инициализация навигации
+document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const page = e.target.dataset.page;
+        if (page) {
+            showPage(page);
+        }
+    });
+});
+
+document.getElementById('logoutLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    storage.removeToken();
+    storage.removeUser();
+    showPage('home');
+    updateNavigation();
+});
+
 // Обработка формы входа
 document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -51,9 +155,8 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
 
     const formData = new FormData(e.target);
     
-    // OAuth2 требует form-data, а не JSON
     try {
-        const response = await fetch(`${API_BASE_URL}/singin`, {
+        const response = await fetch(`${API_BASE_URL}/signin`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -68,10 +171,9 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
 
         if (response.ok) {
             storage.setToken(data.access_token);
-            // Получаем информацию о пользователе (можно добавить отдельный эндпоинт)
             storage.setUser({ username: formData.get('username') });
-            showMainContent();
-            loadAppointments();
+            updateNavigation();
+            showPage('profile');
         } else {
             errorDiv.textContent = data.detail || 'Ошибка входа';
             errorDiv.classList.add('show');
@@ -99,14 +201,14 @@ document.getElementById('registerForm')?.addEventListener('submit', async (e) =>
     };
 
     try {
-        const data = await apiRequest('/singup', {
+        const data = await apiRequest('/api/v1/users/signup', {
             method: 'POST',
             body: JSON.stringify(userData)
         });
 
         if (data.data === 'User created successfully') {
             // После регистрации автоматически входим
-            const loginResponse = await fetch(`${API_BASE_URL}/singin`, {
+            const loginResponse = await fetch(`${API_BASE_URL}/signin`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -121,8 +223,8 @@ document.getElementById('registerForm')?.addEventListener('submit', async (e) =>
             if (loginResponse.ok) {
                 storage.setToken(loginData.access_token);
                 storage.setUser({ username: userData.email, name: userData.name });
-                showMainContent();
-                loadAppointments();
+                updateNavigation();
+                showPage('profile');
             }
         }
     } catch (error) {
@@ -132,138 +234,418 @@ document.getElementById('registerForm')?.addEventListener('submit', async (e) =>
 });
 
 // Переключение между формами входа и регистрации
+document.getElementById('showRegister')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('loginForm').parentElement.style.display = 'none';
+    document.getElementById('registerCard').style.display = 'block';
+});
+
 document.getElementById('showLogin')?.addEventListener('click', (e) => {
     e.preventDefault();
-    document.getElementById('loginSection').style.display = 'block';
-    document.getElementById('registerSection').style.display = 'none';
+    document.getElementById('loginForm').parentElement.style.display = 'block';
+    document.getElementById('registerCard').style.display = 'none';
 });
 
-// Показать форму регистрации (можно добавить кнопку "Регистрация" на форме входа)
-// Для упрощения добавим ссылку в форму входа
-if (!document.querySelector('#loginSection a[href="#register"]')) {
-    const loginSection = document.getElementById('loginSection');
-    const registerLink = document.createElement('p');
-    registerLink.className = 'switch-form';
-    registerLink.innerHTML = 'Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a>';
-    loginSection.appendChild(registerLink);
-    
-    document.getElementById('showRegister')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('registerSection').style.display = 'block';
+// Загрузка салонов для главной страницы
+async function loadSalonsPreview() {
+    try {
+        const data = await apiRequest('/salons');
+        const container = document.getElementById('salonsPreview');
+        
+        if (data.salons && data.salons.length > 0) {
+            container.innerHTML = data.salons.map(salon => `
+                <div class="salon-card">
+                    <h3>${salon.title}</h3>
+                    <p><strong>Адрес:</strong> ${salon.address}</p>
+                    <p><strong>Телефон:</strong> ${salon.phone || 'Не указан'}</p>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p>Информация о салонах временно недоступна</p>';
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки салонов:', error);
+        document.getElementById('salonsPreview').innerHTML = '<p>Ошибка загрузки информации о салонах</p>';
+    }
+}
+
+// Процесс записи
+function resetBooking() {
+    appState.currentStep = 1;
+    appState.bookingData = {
+        salon_id: null,
+        service_id: null,
+        master_id: null,
+        date: null,
+        time: null
+    };
+}
+
+function updateBookingSteps() {
+    document.querySelectorAll('.step').forEach((step, index) => {
+        const stepNum = index + 1;
+        if (stepNum < appState.currentStep) {
+            step.classList.add('completed');
+            step.classList.remove('active');
+        } else if (stepNum === appState.currentStep) {
+            step.classList.add('active');
+            step.classList.remove('completed');
+        } else {
+            step.classList.remove('active', 'completed');
+        }
     });
 }
 
-// Выход из системы
-document.getElementById('logoutBtn')?.addEventListener('click', () => {
-    storage.removeToken();
-    storage.removeUser();
-    showLoginForm();
-});
-
-// Показать основной контент
-function showMainContent() {
-    document.getElementById('loginSection').style.display = 'none';
-    document.getElementById('registerSection').style.display = 'none';
-    const mainContent = document.getElementById('mainContent');
-    mainContent.style.display = 'block';
+async function loadBookingStep(step) {
+    appState.currentStep = step;
+    updateBookingSteps();
     
-    const user = storage.getUser();
-    if (user.name) {
-        document.getElementById('userName').textContent = `Привет, ${user.name}!`;
-    } else {
-        document.getElementById('userName').textContent = `Привет, ${user.username || 'Пользователь'}!`;
+    // Скрываем все шаги
+    document.querySelectorAll('.booking-step-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    
+    // Показываем текущий шаг
+    const currentStepElement = document.getElementById(`step${step}`);
+    if (currentStepElement) {
+        currentStepElement.style.display = 'block';
     }
     
-    // Инициализируем обработчики вкладок после того, как контент стал видимым
-    // Используем небольшую задержку для гарантии обновления DOM
-    setTimeout(() => {
-        initTabs();
-    }, 10);
-    
-    // Загружаем данные для формы создания записи
-    loadSalons();
-    loadServices();
-}
-
-// Показать форму входа
-function showLoginForm() {
-    document.getElementById('loginSection').style.display = 'block';
-    document.getElementById('registerSection').style.display = 'none';
-    document.getElementById('mainContent').style.display = 'none';
-}
-
-// Функция для инициализации переключения вкладок
-function initTabs() {
-    // Находим все кнопки вкладок
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    console.log('Инициализация вкладок, найдено кнопок:', tabButtons.length);
-    
-    if (tabButtons.length === 0) {
-        console.warn('Кнопки вкладок не найдены!');
-        return;
+    // Показываем/скрываем кнопку "Назад"
+    const prevBtn = document.getElementById('prevBtn');
+    if (prevBtn) {
+        prevBtn.style.display = step > 1 ? 'block' : 'none';
     }
     
-    tabButtons.forEach(btn => {
-        // Проверяем, не добавлен ли уже обработчик
-        if (btn.dataset.handlerAttached === 'true') {
-            return; // Обработчик уже добавлен
+    // Загружаем данные для шага
+    switch(step) {
+        case 1:
+            await loadSalonsForBooking();
+            break;
+        case 2:
+            await loadServicesForBooking();
+            break;
+        case 3:
+            await loadMastersForBooking();
+            break;
+        case 4:
+            setupDatePicker();
+            break;
+        case 5:
+            showBookingSummary();
+            break;
+    }
+}
+
+// Шаг 1: Загрузка салонов
+async function loadSalonsForBooking() {
+    const container = document.getElementById('salonsList');
+    container.innerHTML = '<p class="loading">Загрузка салонов...</p>';
+    
+    try {
+        const data = await apiRequest('/salons');
+        if (data.salons && data.salons.length > 0) {
+            container.innerHTML = data.salons.map(salon => `
+                <div class="salon-card selectable" data-salon-id="${salon.id}">
+                    <h3>${salon.title}</h3>
+                    <p><strong>Адрес:</strong> ${salon.address}</p>
+                    <p><strong>Телефон:</strong> ${salon.phone || 'Не указан'}</p>
+                </div>
+            `).join('');
+            
+            // Добавляем обработчики клика
+            container.querySelectorAll('.salon-card.selectable').forEach(card => {
+                card.addEventListener('click', () => {
+                    const salonId = parseInt(card.dataset.salonId);
+                    appState.bookingData.salon_id = salonId;
+                    card.classList.add('selected');
+                    container.querySelectorAll('.salon-card').forEach(c => {
+                        if (c !== card) c.classList.remove('selected');
+                    });
+                    setTimeout(() => loadBookingStep(2), 500);
+                });
+            });
+        } else {
+            container.innerHTML = '<p>Салонов не найдено</p>';
         }
+    } catch (error) {
+        container.innerHTML = `<p class="error">Ошибка загрузки: ${error.message}</p>`;
+    }
+}
+
+// Шаг 2: Загрузка услуг
+async function loadServicesForBooking() {
+    const container = document.getElementById('servicesList');
+    container.innerHTML = '<p class="loading">Загрузка услуг...</p>';
+    
+    try {
+        const data = await apiRequest('/services');
+        if (data.services && data.services.length > 0) {
+            container.innerHTML = data.services.map(service => `
+                <div class="service-card selectable" data-service-id="${service.id}">
+                    <h3>${service.description || 'Услуга'}</h3>
+                    <p><strong>Продолжительность:</strong> ${service.duration_minutes} мин</p>
+                    <p><strong>Цена:</strong> ${service.base_price}₽</p>
+                </div>
+            `).join('');
+            
+            container.querySelectorAll('.service-card.selectable').forEach(card => {
+                card.addEventListener('click', () => {
+                    const serviceId = parseInt(card.dataset.serviceId);
+                    appState.bookingData.service_id = serviceId;
+                    card.classList.add('selected');
+                    container.querySelectorAll('.service-card').forEach(c => {
+                        if (c !== card) c.classList.remove('selected');
+                    });
+                    setTimeout(() => loadBookingStep(3), 500);
+                });
+            });
+        } else {
+            container.innerHTML = '<p>Услуг не найдено</p>';
+        }
+    } catch (error) {
+        container.innerHTML = `<p class="error">Ошибка загрузки: ${error.message}</p>`;
+    }
+}
+
+// Шаг 3: Загрузка мастеров
+async function loadMastersForBooking() {
+    const container = document.getElementById('mastersList');
+    const anyMasterRadio = document.getElementById('anyMaster');
+    
+    container.innerHTML = '<p class="loading">Загрузка мастеров...</p>';
+    
+    try {
+        const data = await apiRequest(`/masters?salon_id=${appState.bookingData.salon_id}&service_id=${appState.bookingData.service_id}`);
         
-        // Добавляем обработчик
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const tabName = this.dataset.tab;
-            console.log('Клик по вкладке:', tabName);
+        if (data.masters && data.masters.length > 0) {
+            container.innerHTML = data.masters.map(master => `
+                <div class="master-card selectable" data-master-id="${master.id}">
+                    <h3>${master.specialization || 'Мастер'}</h3>
+                    <p>${master.about || 'Профессиональный мастер'}</p>
+                </div>
+            `).join('');
             
-            // Убираем активный класс со всех кнопок и контента
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            container.querySelectorAll('.master-card.selectable').forEach(card => {
+                card.addEventListener('click', () => {
+                    const masterId = parseInt(card.dataset.masterId);
+                    appState.bookingData.master_id = masterId;
+                    anyMasterRadio.checked = false;
+                    card.classList.add('selected');
+                    container.querySelectorAll('.master-card').forEach(c => {
+                        if (c !== card) c.classList.remove('selected');
+                    });
+                    setTimeout(() => loadBookingStep(4), 500);
+                });
+            });
             
-            // Добавляем активный класс выбранным
-            this.classList.add('active');
+            anyMasterRadio.addEventListener('change', () => {
+                if (anyMasterRadio.checked) {
+                    appState.bookingData.master_id = null;
+                    container.querySelectorAll('.master-card').forEach(c => c.classList.remove('selected'));
+                    setTimeout(() => loadBookingStep(4), 500);
+                }
+            });
+        } else {
+            container.innerHTML = '<p>Мастеров не найдено</p>';
+        }
+    } catch (error) {
+        container.innerHTML = `<p class="error">Ошибка загрузки: ${error.message}</p>`;
+    }
+}
+
+// Шаг 4: Выбор даты и времени
+function setupDatePicker() {
+    const dateInput = document.getElementById('appointmentDate');
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    dateInput.min = tomorrow.toISOString().split('T')[0];
+    dateInput.value = '';
+    
+    dateInput.addEventListener('change', async (e) => {
+        const selectedDate = e.target.value;
+        if (selectedDate) {
+            appState.bookingData.date = selectedDate;
+            await loadTimeSlots(selectedDate);
+        }
+    });
+}
+
+async function loadTimeSlots(dateStr) {
+    const container = document.getElementById('timeSlots');
+    container.innerHTML = '<p class="loading">Загрузка доступного времени...</p>';
+    
+    try {
+        const response = await apiRequest(`/free_slots?salon_id=${appState.bookingData.salon_id}&service_id=${appState.bookingData.service_id}&target_date=${dateStr}${appState.bookingData.master_id ? `&master_id=${appState.bookingData.master_id}` : ''}`);
+        
+        if (response.slots && response.slots.length > 0) {
+            let allSlots = [];
+            response.slots.forEach(masterSlot => {
+                if (masterSlot.slots && masterSlot.slots.length > 0) {
+                    masterSlot.slots.forEach(slot => {
+                        allSlots.push({
+                            ...slot,
+                            master_id: masterSlot.master_id
+                        });
+                    });
+                }
+            });
             
-            // Преобразуем имя вкладки в ID
-            // appointments -> appointmentsTab
-            // new-appointment -> newAppointmentTab
-            let tabId;
-            if (tabName === 'new-appointment') {
-                tabId = 'newAppointmentTab';
+            // Сортируем слоты по времени
+            allSlots.sort((a, b) => new Date(a.start) - new Date(b.start));
+            
+            if (allSlots.length > 0) {
+                container.innerHTML = `
+                    <h3>Доступное время:</h3>
+                    <div class="time-grid">
+                        ${allSlots.map(slot => {
+                            const startTime = new Date(slot.start);
+                            const endTime = new Date(slot.end);
+                            const timeStr = `${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')} - ${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`;
+                            return `
+                                <button class="time-slot-btn" data-start="${slot.start}" data-master-id="${slot.master_id}">
+                                    ${timeStr}
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+                
+                container.querySelectorAll('.time-slot-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        appState.bookingData.time = btn.dataset.start;
+                        if (!appState.bookingData.master_id && btn.dataset.masterId) {
+                            appState.bookingData.master_id = parseInt(btn.dataset.masterId);
+                        }
+                        container.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        setTimeout(() => loadBookingStep(5), 500);
+                    });
+                });
             } else {
-                // Для других вкладок просто добавляем Tab с заглавной буквы
-                tabId = tabName + 'Tab';
+                container.innerHTML = '<p>На выбранную дату нет свободного времени</p>';
             }
-            
-            const tabContent = document.getElementById(tabId);
-            if (tabContent) {
-                tabContent.classList.add('active');
-                console.log('Вкладка активирована:', tabName, '->', tabId);
-            } else {
-                console.error('Контент вкладки не найден:', tabId);
-            }
-            
-            // Если открыли вкладку создания записи, загружаем данные
-            if (tabName === 'new-appointment') {
-                console.log('Загрузка данных для новой записи...');
-                loadSalons();
-                loadServices();
-            }
+        } else {
+            container.innerHTML = '<p>На выбранную дату нет свободного времени</p>';
+        }
+    } catch (error) {
+        container.innerHTML = `<p class="error">Ошибка загрузки: ${error.message}</p>`;
+    }
+}
+
+// Шаг 5: Подтверждение
+async function showBookingSummary() {
+    const summaryDiv = document.getElementById('bookingSummary');
+    const userDataFields = document.getElementById('userDataFields');
+    
+    // Загружаем данные для отображения
+    const [salonsData, servicesData, mastersData] = await Promise.all([
+        apiRequest('/salons'),
+        apiRequest('/services'),
+        apiRequest(`/masters?salon_id=${appState.bookingData.salon_id}`)
+    ]);
+    
+    const salon = salonsData.salons.find(s => s.id === appState.bookingData.salon_id);
+    const service = servicesData.services.find(s => s.id === appState.bookingData.service_id);
+    const master = appState.bookingData.master_id ? mastersData.masters.find(m => m.id === appState.bookingData.master_id) : null;
+    
+    const dateTime = new Date(appState.bookingData.time);
+    const dateStr = dateTime.toLocaleDateString('ru-RU');
+    const timeStr = dateTime.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    
+    summaryDiv.innerHTML = `
+        <div class="summary-item">
+            <strong>Салон:</strong> ${salon?.title || 'Не выбран'}
+        </div>
+        <div class="summary-item">
+            <strong>Услуга:</strong> ${service?.description || 'Не выбрана'} (${service?.duration_minutes} мин, ${service?.base_price}₽)
+        </div>
+        <div class="summary-item">
+            <strong>Мастер:</strong> ${master ? (master.specialization || 'Мастер') : 'Любой свободный'}
+        </div>
+        <div class="summary-item">
+            <strong>Дата и время:</strong> ${dateStr} в ${timeStr}
+        </div>
+    `;
+    
+    // Поля для данных пользователя уже заполнены, так как пользователь авторизован
+    userDataFields.innerHTML = '<p>Данные будут взяты из вашего профиля</p>';
+}
+
+// Обработка формы подтверждения записи
+document.getElementById('bookingForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorDiv = document.getElementById('bookingError');
+    errorDiv.textContent = '';
+    errorDiv.classList.remove('show');
+    
+    const comment = document.getElementById('bookingComment').value;
+    
+    const appointmentData = {
+        salon_id: appState.bookingData.salon_id,
+        master_id: appState.bookingData.master_id,
+        service_id: appState.bookingData.service_id,
+        date_time: appState.bookingData.time,
+        comment: comment || null
+    };
+    
+    try {
+        const data = await apiRequest('/api/v1/users/appointments', {
+            method: 'POST',
+            body: JSON.stringify(appointmentData)
         });
         
-        // Помечаем, что обработчик добавлен
-        btn.dataset.handlerAttached = 'true';
-        console.log('Обработчик добавлен для вкладки:', btn.dataset.tab);
-    });
+        // Показываем страницу успеха
+        appState.currentStep = 6;
+        updateBookingSteps();
+        document.querySelectorAll('.booking-step-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        const successPage = document.getElementById('step6');
+        successPage.style.display = 'block';
+        
+        // Заполняем детали успеха
+        const successDetails = document.getElementById('successDetails');
+        const dateTime = new Date(appointmentData.date_time);
+        successDetails.innerHTML = `
+            <p><strong>Номер записи:</strong> #${data.appointment?.id || 'N/A'}</p>
+            <p><strong>Дата и время:</strong> ${dateTime.toLocaleString('ru-RU')}</p>
+            <p>Запись успешно создана! Мы отправили вам подтверждение.</p>
+        `;
+        
+    } catch (error) {
+        errorDiv.textContent = error.message || 'Ошибка создания записи';
+        errorDiv.classList.add('show');
+    }
+});
+
+// Кнопка "Назад" в процессе записи
+document.getElementById('prevBtn')?.addEventListener('click', () => {
+    if (appState.currentStep > 1) {
+        loadBookingStep(appState.currentStep - 1);
+    }
+});
+
+// Загрузка профиля пользователя
+async function loadUserProfile() {
+    const container = document.getElementById('userProfileInfo');
+    const user = storage.getUser();
+    
+    container.innerHTML = `
+        <p><strong>Email/Телефон:</strong> ${user.username || 'Не указан'}</p>
+        <p><strong>Имя:</strong> ${user.name || 'Не указано'}</p>
+    `;
 }
 
-// Загрузка списка записей
+// Загрузка записей пользователя
 async function loadAppointments() {
     const listDiv = document.getElementById('appointmentsList');
     listDiv.innerHTML = '<p class="loading">Загрузка...</p>';
 
     try {
-        const data = await apiRequest('/appointments');
+        const data = await apiRequest('/api/v1/users/appointments');
         const appointments = data.appointments || [];
 
         if (appointments.length === 0) {
@@ -274,6 +656,8 @@ async function loadAppointments() {
         listDiv.innerHTML = appointments.map(apt => {
             const isPast = new Date(apt.date_time) < new Date();
             const canCancel = apt.status && !isPast;
+            const dateTime = new Date(apt.date_time);
+            const endTime = new Date(apt.end_time);
             
             return `
             <div class="appointment-item">
@@ -302,127 +686,18 @@ async function loadAppointments() {
     }
 }
 
-// Загрузка салонов
-async function loadSalons() {
-    try {
-        const data = await apiRequest('/salons');
-        const select = document.getElementById('salonSelect');
-        select.innerHTML = '<option value="">Выберите салон...</option>';
-        
-        data.salons.forEach(salon => {
-            const option = document.createElement('option');
-            option.value = salon.id;
-            option.textContent = `${salon.title} - ${salon.address}`;
-            select.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Ошибка загрузки салонов:', error);
-    }
-}
-
-// Загрузка услуг
-async function loadServices() {
-    try {
-        const data = await apiRequest('/services');
-        const select = document.getElementById('serviceSelect');
-        select.innerHTML = '<option value="">Выберите услугу...</option>';
-        
-        data.services.forEach(service => {
-            const option = document.createElement('option');
-            option.value = service.id;
-            option.textContent = `${service.description} - ${service.base_price}₽ (${service.duration_minutes} мин)`;
-            select.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Ошибка загрузки услуг:', error);
-    }
-}
-
-// Загрузка мастеров при выборе салона
-document.getElementById('salonSelect')?.addEventListener('change', async (e) => {
-    const salonId = e.target.value;
-    const masterSelect = document.getElementById('masterSelect');
-    masterSelect.innerHTML = '<option value="">Выберите мастера...</option>';
-
-    if (salonId) {
-        try {
-            const data = await apiRequest(`/masters?salon_id=${salonId}`);
-            data.masters.forEach(master => {
-                const option = document.createElement('option');
-                option.value = master.id;
-                option.textContent = `${master.specialization} - ${master.about || 'Мастер'}`;
-                masterSelect.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Ошибка загрузки мастеров:', error);
-        }
-    }
-});
-
-// Обработка формы создания записи
-document.getElementById('newAppointmentForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errorDiv = document.getElementById('appointmentError');
-    const successDiv = document.getElementById('appointmentSuccess');
-    errorDiv.textContent = '';
-    errorDiv.classList.remove('show');
-    successDiv.textContent = '';
-    successDiv.classList.remove('show');
-
-    const formData = new FormData(e.target);
-    const appointmentData = {
-        salon_id: parseInt(formData.get('salon_id')),
-        master_id: parseInt(formData.get('master_id')),
-        service_id: parseInt(formData.get('service_id')),
-        date_time: formData.get('date_time'),
-        comment: formData.get('comment') || null
-    };
-
-    try {
-        const data = await apiRequest('/appointments/add', {
-            method: 'POST',
-            body: JSON.stringify(appointmentData)
-        });
-
-        successDiv.textContent = 'Запись успешно создана!';
-        successDiv.classList.add('show');
-        
-        // Очищаем форму
-        e.target.reset();
-        
-        // Переключаемся на вкладку с записями и обновляем список
-        document.querySelector('.tab-btn[data-tab="appointments"]').click();
-        loadAppointments();
-    } catch (error) {
-        errorDiv.textContent = error.message || 'Ошибка создания записи';
-        errorDiv.classList.add('show');
-    }
-});
-
-// Отмена записи (доступна глобально для onclick)
+// Отмена записи
 window.cancelAppointment = async function(appointmentId) {
     if (!confirm('Вы уверены, что хотите отменить эту запись?')) {
         return;
     }
 
     try {
-        const data = await apiRequest(`/del_appointment?appointment_id=${appointmentId}`, {
+        await apiRequest(`/api/v1/users/appointments/${appointmentId}`, {
             method: 'DELETE'
         });
 
-        // Показываем сообщение об успехе
-        const listDiv = document.getElementById('appointmentsList');
-        const successMsg = document.createElement('div');
-        successMsg.className = 'success-message show';
-        successMsg.textContent = 'Запись успешно отменена';
-        listDiv.insertBefore(successMsg, listDiv.firstChild);
-        
-        // Убираем сообщение через 3 секунды
-        setTimeout(() => {
-            successMsg.remove();
-        }, 3000);
-        
-        // Обновляем список записей
+        alert('Запись успешно отменена');
         loadAppointments();
     } catch (error) {
         alert('Ошибка при отмене записи: ' + error.message);
@@ -443,14 +718,23 @@ function formatDateTime(dateTimeString) {
     });
 }
 
-// Проверка авторизации при загрузке страницы
+// Инициализация при загрузке страницы
 window.addEventListener('DOMContentLoaded', () => {
     const token = storage.getToken();
     if (token) {
-        showMainContent();
-        loadAppointments();
-    } else {
-        showLoginForm();
+        storage.getUser();
+        updateNavigation();
     }
+    
+    // Обработка ссылок на страницу успеха
+    document.querySelectorAll('[data-page]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            if (link.dataset.page) {
+                e.preventDefault();
+                showPage(link.dataset.page);
+            }
+        });
+    });
+    
+    showPage('home');
 });
-
