@@ -379,7 +379,7 @@ async function loadServicesForBooking() {
     container.innerHTML = '<p class="loading">Загрузка услуг...</p>';
     
     try {
-        const data = await apiRequest('/services');
+        const data = await apiRequest(`/services?salon_id=${appState.bookingData.salon_id}`);
         if (data.services && data.services.length > 0) {
             container.innerHTML = data.services.map(service => `
                 <div class="service-card selectable" data-service-id="${service.id}">

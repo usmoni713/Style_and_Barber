@@ -44,6 +44,7 @@ async def get_masters(
 
 @router.get("/services")
 async def get_services(
+    salon_id: int | None = Query(None, description="ID салона для фильтрации"),
     service: SalonService = Depends(get_salon_service)
 ):
     """
@@ -52,7 +53,7 @@ async def get_services(
     Returns:
         dict: Список услуг
     """
-    services = await service.get_services()
+    services = await service.get_services(salon_id=salon_id)
     return {"services": services}
 
 

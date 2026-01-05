@@ -8,7 +8,8 @@ from src.models import (salons as DBsalon,
                         master_salon as DBmaster_salon,
                         services as DBservice,
                         admin_salon as DBadmin_salon,
-                        admins as DBadmin
+                        admins as DBadmin,
+                        service_salon as DBservice_salon
 
 ) 
 from src.repository.base_repo import BaseRepository
@@ -103,8 +104,17 @@ class SalonService:
             })
         return masters_list
 
-    async def get_services(self):
+    async def get_services(self, salon_id:None = None ):
             stmt = select(DBservice).where(DBservice.is_active == True)
+            if salon_id:
+                stmt = (
+                    select(DBservice)
+                    .join(DBservice_salon, DBservice.id == DBservice_salon.service_id)
+                    .where(and_(
+                        DBservice.is_active == True,
+                        DBservice_salon.salon_id==salon_id,
+                        ))
+                    )
             result = await self.session.execute(stmt)
             services = result.scalars().all()
             
