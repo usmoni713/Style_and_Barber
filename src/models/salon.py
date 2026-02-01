@@ -15,6 +15,7 @@ class salons(Base, BaseMixin):
     appointments = relationship("appointments", back_populates="salon")
     admins = relationship("admins",secondary="admin_salon", back_populates="salons")
     services = relationship("services", secondary="service_salon", back_populates="salons")
+    work_schedule = relationship("salon_schedules", back_populates="salon")
     # work_schedule:Mapped[dict] 
 #     {
 #   "monday": { "start": "09:00", "end": "18:00", "break_start": "13:00", "break_end": "14:00" },

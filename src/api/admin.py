@@ -4,7 +4,7 @@ from fastapi import Query
 
 from src.schemas import (
     AdminCreate, SalonEdit, SalonCreate, ServiceCreate,
-    UserEdit, User, AdminEdit, MasterEdit
+    UserEdit, User, AdminEdit, MasterEdit, ScheduleCreate
 )
 from src.models import admins as DBadmin
 
@@ -15,10 +15,12 @@ from src.services.user_service import UserService
 from src.services.service_service import ServiceService
 from src.services.master_service import MasterService
 from src.services.auth_service import AuthService
+from src.services.schedule_service import ScheduleService
 
 from .depends_functions import (
     get_admin_service, get_salon_service, get_user_service,
-    get_service_service, get_master_service, get_auth_service
+    get_service_service, get_master_service, get_auth_service,
+    get_schedule_service
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -307,4 +309,27 @@ async def update_master(
 ):
     """Редактирование мастера (только для super_admin)"""
     return await service.update_master(master_id, master_data)
+
+@router.put("/salon/{salon_id}/schedule")
+async def update_salon_schedule(
+    salon_id: int,
+    schedule_data: ScheduleCreate,
+    admin: DBadmin = Depends(get_admin_from_id),
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """Обновление расписания салона"""
+    return await service.update_salon_schedule(salon_id=salon_id, schedule_data=schedule_data)
+
+@router.put("/salon/{salon_id}/masters/{master_id}/schedule")
+async def update_master_schedule(
+    salon_id: int,
+    master_id: int,
+    schedule_data: ScheduleCreate,
+    admin: DBadmin = Depends(get_admin_from_id),
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """Обновление расписания мастера в салоне"""
+    return await service.update_master_schedule(master_id=master_id, salon_id=salon_id, schedule_data=schedule_data)
+
+
 

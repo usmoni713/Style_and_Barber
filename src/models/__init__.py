@@ -7,8 +7,8 @@ from .salon import salons
 from .master import masters
 from .service import services, service_category
 from .appointment import appointments
-
-
+from .salon_schedule import salon_schedules
+from .master_schedule import master_schedules
 from .master_salon import master_salon
 from .master_service import master_service
 from .admin_salon import admin_salon
@@ -27,5 +27,7 @@ __all__ = [
     "master_service",
     "admin_salon",
     "service_category",
-    "service_salon"
+    "service_salon",
+    "salon_schedules",
+    "master_schedules"
 ]

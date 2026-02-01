@@ -8,6 +8,7 @@ from src.services.user_service import UserService
 from src.services.appointment_service import AppointmentService
 from src.services.service_service import ServiceService
 from src.services.master_service import MasterService
+from src.services.schedule_service import ScheduleService
 
 from src.core.database import get_db_session
 
@@ -46,4 +47,8 @@ async def get_service_service(session: AsyncSession = Depends(get_db_session)) -
 async def get_master_service(session: AsyncSession = Depends(get_db_session)) -> MasterService:
     """Создание сервиса мастеров"""
     return MasterService(session)
+
+async def get_schedule_service(session: AsyncSession = Depends(get_db_session)) -> ScheduleService:
+    """Создание сервиса мастеров"""
+    return ScheduleService(session)
 

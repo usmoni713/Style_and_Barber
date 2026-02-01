@@ -8,9 +8,12 @@ from src.models import (
     salons as DBsalon,
     masters as DBmaster,
     services as DBservice,
-    master_salon as DBmaster_salon
+    master_salon as DBmaster_salon,
+    master_schedules as DBmaster_schedules,
+    salon_schedules as DBsalon_schedules
 )
 from src.schemas import AppointmentCreate
+from src.services import schedule_service
 
 
 class AppointmentService:
@@ -66,6 +69,55 @@ class AppointmentService:
                 )
             
             end_time = appointment_data.date_time + timedelta(minutes=service.duration_minutes)
+            
+            target_weekday = appointment_data.date_time.weekday()
+            master_schedule_stmt = select(DBmaster_schedules).where(
+                and_(
+                    DBmaster_schedules.master_id == appointment_data.master_id,
+                    DBmaster_schedules.salon_id == appointment_data.salon_id,
+                    DBmaster_schedules.day_of_week == target_weekday,
+                    DBmaster_schedules.is_working == True
+                )
+            )
+            master_schedule_result = await self.session.execute(master_schedule_stmt)
+            master_schedule = master_schedule_result.scalar_one_or_none()
+            
+            # Если у мастера нет расписания для салона, использовать расписание салона
+            if not master_schedule:
+                salon_schedule_stmt = select(DBsalon_schedules).where(
+                    and_(
+                        DBsalon_schedules.salon_id == appointment_data.salon_id,
+                        DBsalon_schedules.day_of_week == target_weekday,
+                        DBsalon_schedules.is_working == True
+                    )
+                )
+                salon_schedule_result = await self.session.execute(salon_schedule_stmt)
+                salon_schedule = salon_schedule_result.scalar_one_or_none()
+                
+                if not salon_schedule:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="The salon is not working on the selected day"
+                    )
+                working_schedule = salon_schedule
+            else:
+                working_schedule = master_schedule
+            
+            appointment_time = appointment_data.date_time.time()
+            appointment_end_time = end_time.time()
+            
+            if appointment_time < working_schedule.start_time or appointment_end_time > working_schedule.end_time:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The appointment time is outside working hours"
+                )
+            
+            if working_schedule.break_start and working_schedule.break_end:
+                if not (appointment_end_time <= working_schedule.break_start or appointment_time >= working_schedule.break_end):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="The appointment time overlaps with break time"
+                    )
             
             overlap_stmt = select(DBappointment).where(
                 and_(
@@ -176,7 +228,7 @@ class AppointmentService:
     ) -> list[dict]:
         """
         Получение свободных слотов для записи
-        Рабочий день пока фиксированный: 10:00–19:00, обед 13:00–14:00
+        Часы работы берутся из расписания мастера/салона
         
         Args:
             salon_id: ID салона
@@ -223,10 +275,30 @@ class AppointmentService:
             if not master_ids:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Masters not found")
 
-            work_start = datetime.combine(target_date, time(10, 0))
-            work_end = datetime.combine(target_date, time(19, 0))
-            lunch_start = datetime.combine(target_date, time(13, 0))
-            lunch_end = datetime.combine(target_date, time(14, 0))
+            schedule_service_instance = schedule_service.ScheduleService(self.session)
+            available_masters = await schedule_service_instance.get_available_masters(
+                salon_id,
+                service_id,
+                target_date
+            )
+            master_ids = [m_id for m_id in master_ids if m_id in available_masters]
+            if not master_ids:
+                return []
+            
+            target_weekday = target_date.weekday()
+            salon_schedule_stmt = select(DBsalon_schedules).where(
+                and_(
+                    DBsalon_schedules.salon_id == salon_id,
+                    DBsalon_schedules.day_of_week == target_weekday,
+                    DBsalon_schedules.is_working == True
+                )
+            )
+            salon_schedule_result = await self.session.execute(salon_schedule_stmt)
+            salon_schedule = salon_schedule_result.scalar_one_or_none()
+            
+            if not salon_schedule:
+                return []
+
             now = datetime.now()
             min_start_time = now + timedelta(hours=min_hours_before)
             day_start = datetime.combine(target_date, time(0, 0))
@@ -241,6 +313,19 @@ class AppointmentService:
             masters_slots: list[dict] = []
 
             for m_id in master_ids:
+                master_schedule_stmt = select(DBmaster_schedules).where(
+                    and_(
+                        DBmaster_schedules.master_id == m_id,
+                        DBmaster_schedules.salon_id == salon_id,
+                        DBmaster_schedules.day_of_week == target_weekday,
+                        DBmaster_schedules.is_working == True
+                    )
+                )
+                master_schedule_result = await self.session.execute(master_schedule_stmt)
+                master_schedule = master_schedule_result.scalar_one_or_none()
+                
+                working_schedule = master_schedule if master_schedule else salon_schedule
+                
                 appointments_stmt = select(DBappointment).where(
                     and_(
                         DBappointment.salon_id == salon_id,
@@ -258,6 +343,8 @@ class AppointmentService:
                     busy_intervals.append((apt.date_time, apt.end_time))
 
                 free_slots: list[dict] = []
+                work_start = datetime.combine(target_date, working_schedule.start_time)
+                work_end = datetime.combine(target_date, working_schedule.end_time)
                 current_start = work_start
 
                 while current_start + service_duration <= work_end:
@@ -267,9 +354,13 @@ class AppointmentService:
                         current_start += timedelta(minutes=15)
                         continue
 
-                    if current_start < lunch_end and current_end > lunch_start:
-                        current_start = lunch_end
-                        continue
+                    if working_schedule.break_start and working_schedule.break_end:
+                        lunch_start = datetime.combine(target_date, working_schedule.break_start)
+                        lunch_end = datetime.combine(target_date, working_schedule.break_end)
+                        
+                        if current_start < lunch_end and current_end > lunch_start:
+                            current_start = lunch_end
+                            continue
 
                     if not is_overlaps(current_start, current_end, busy_intervals):
                         free_slots.append(

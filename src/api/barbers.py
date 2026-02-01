@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 from datetime import date
 
+from src.services.schedule_service import ScheduleService
 from src.services.salon_service import SalonService
 from src.services.appointment_service import AppointmentService
-from .depends_functions import get_salon_service, get_appointment_service
+from src.schemas import ScheduleCreate
+from .depends_functions import get_salon_service, get_appointment_service, get_schedule_service
 
 router = APIRouter(tags=["public"])
 
@@ -26,6 +28,7 @@ async def get_salons(
 async def get_masters(
     salon_id: int | None = Query(None, description="ID салона для фильтрации"),
     service_id: int | None = Query(None, description="ID услуги для фильтрации"),
+    target_date: date | None = Query(None, description="Дата для фильтрации по доступности мастеров"),
     service: SalonService = Depends(get_salon_service)
 ):
     """
@@ -38,7 +41,7 @@ async def get_masters(
     Returns:
         dict: Список мастеров
     """
-    masters = await service.get_masters(salon_id=salon_id, service_id=service_id)
+    masters = await service.get_masters(salon_id=salon_id, service_id=service_id, target_date=target_date)
     return {"masters": masters}
 
 
@@ -87,3 +90,24 @@ async def get_free_slots(
         min_hours_before=min_hours_before
     )
     return {"slots": slots}
+
+
+@router.get("/salons/{salon_id}/schedule")
+async def get_salon_schedule_by_id(
+    salon_id: int,
+    schedule_service: ScheduleService = Depends(get_schedule_service)):
+
+    schedule = await schedule_service.get_salon_schedule(salon_id=salon_id)
+    return {"schedule": schedule}
+
+@router.get("/salons/{salon_id}/masters/{master_id}/schedule")
+async def get_master_schedule_by_id(
+    salon_id: int,
+    master_id: int,
+    schedule_service: ScheduleService = Depends(get_schedule_service)):
+
+    schedule = await schedule_service.get_master_schedule(salon_id=salon_id, master_id=master_id)
+    return {"schedule": schedule}
+
+
+

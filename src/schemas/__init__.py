@@ -4,7 +4,7 @@ from .admin import AdminCreate, AdminEdit
 from .salon import SalonCreate, SalonEdit
 from .service import ServiceCreate, ServiceEdit
 from .master import MasterEdit
-
+from .schedule import ScheduleCreate, DaySchedule
 __all__ = [
     "User",
     "UserEdit",
@@ -17,4 +17,6 @@ __all__ = [
     "ServiceCreate",
     "ServiceEdit",
     "MasterEdit",
+    "ScheduleCreate",
+    "DaySchedule"
 ]

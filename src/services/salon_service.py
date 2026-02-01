@@ -15,8 +15,8 @@ from src.models import (salons as DBsalon,
 from src.repository.base_repo import BaseRepository
 
 from sqlalchemy.orm import selectinload
-
-
+from datetime import datetime, timedelta
+from src.services.schedule_service import ScheduleService
 
 class SalonService:
     """Сервис для работы с салонами"""
@@ -49,7 +49,7 @@ class SalonService:
             })
         return salons_list
     
-    async def get_masters(self, salon_id:int | None = None, service_id:int | None = None):
+    async def get_masters(self, salon_id:int | None = None, service_id:int | None = None, target_date:datetime | None = None):
         from src.models import master_service as DBmaster_service
         
         if salon_id and service_id:
@@ -92,6 +92,19 @@ class SalonService:
         
         result = await self.session.execute(stmt)
         masters = result.scalars().all()
+        
+        if target_date is not None:
+            schedule_svc = ScheduleService(self.session)
+            available = await schedule_svc.get_available_masters(salon_id=salon_id, date=target_date)
+            
+            if available is None:
+                available_ids = set()
+            else:
+                try:
+                    available_ids = {m.id for m in available}
+                except Exception:
+                    available_ids = set(available)
+            masters = [m for m in masters if m.id in available_ids]
         
         masters_list = []
         for master in masters:
