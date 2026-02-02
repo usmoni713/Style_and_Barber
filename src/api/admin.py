@@ -16,6 +16,7 @@ from src.services.service_service import ServiceService
 from src.services.master_service import MasterService
 from src.services.auth_service import AuthService
 from src.services.schedule_service import ScheduleService
+from src.core.permission_checker import СheckingAdminAccessSalon
 
 from .depends_functions import (
     get_admin_service, get_salon_service, get_user_service,
@@ -52,7 +53,7 @@ async def get_salons(
     """Получение списка салонов администратора"""
     return await service.get_all_salons_for_admin(admin_id=admin.id)
 
-
+@СheckingAdminAccessSalon()
 @router.put("/salon/edit/info")
 async def edit_salon(
     salon_data: SalonEdit,
@@ -63,6 +64,7 @@ async def edit_salon(
     return await service.edit_salon(salon_data=salon_data, admin_id=admin.id)
 
 
+@СheckingAdminAccessSalon()
 @router.get("/salon/{salon_id}/masters")
 async def get_masters_for_salon(
     salon_id: int,
@@ -73,8 +75,8 @@ async def get_masters_for_salon(
     masters = await service.get_masters(salon_id=salon_id)
     return {"masters": masters}
 
-
 @router.delete("/salon/edit/delete_master")
+@СheckingAdminAccessSalon()
 async def delete_master_from_salon(
     salon_id: int = Query(..., description="ID салона"),
     master_id: int = Query(..., description="ID мастера"),
@@ -88,7 +90,7 @@ async def delete_master_from_salon(
         admin_id=admin.id
     )
 
-
+@СheckingAdminAccessSalon()
 @router.post("/salon/edit/add_master")
 async def add_master_to_salon(
     salon_id: int = Query(..., description="ID салона"),
@@ -103,7 +105,7 @@ async def add_master_to_salon(
         admin_id=admin.id
     )
 
-
+@СheckingAdminAccessSalon()
 @router.get("/salon/{salon_id}/appointments")
 async def get_appointments_for_salon(
     salon_id: int,
@@ -117,6 +119,7 @@ async def get_appointments_for_salon(
     )
 
 
+@СheckingAdminAccessSalon()
 @router.delete("/salon/{salon_id}/appointments/{appointment_id}")
 async def delete_appointment_for_salon(
     salon_id: int,
@@ -132,6 +135,7 @@ async def delete_appointment_for_salon(
     )
 
 
+@СheckingAdminAccessSalon()
 @router.get("/salon/{salon_id}/users")
 async def get_salon_users(
     salon_id: int,
@@ -141,6 +145,7 @@ async def get_salon_users(
     """Получение списка пользователей с записями в салоне"""
     users = await service.get_salon_users(salon_id=salon_id)
     return {"users": users}
+
 
 
 
@@ -310,6 +315,7 @@ async def update_master(
     """Редактирование мастера (только для super_admin)"""
     return await service.update_master(master_id, master_data)
 
+@СheckingAdminAccessSalon()
 @router.put("/salon/{salon_id}/schedule")
 async def update_salon_schedule(
     salon_id: int,
@@ -320,6 +326,7 @@ async def update_salon_schedule(
     """Обновление расписания салона"""
     return await service.update_salon_schedule(salon_id=salon_id, schedule_data=schedule_data)
 
+@СheckingAdminAccessSalon()
 @router.put("/salon/{salon_id}/masters/{master_id}/schedule")
 async def update_master_schedule(
     salon_id: int,

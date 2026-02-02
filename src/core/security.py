@@ -6,6 +6,7 @@ from .config import ACCESS_TOKEN_EXPIRE_HOURS, ALGORITHM, SECRET_KEY
 
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from .database import AssyncSessionLocal
 from src.models import users as DBUser, admins as DBadmin
@@ -62,7 +63,7 @@ async def get_admin_id_from_token(token = Depends(oauth2_scheme_admin)):
 
 async def get_admin_from_id(admin_id: str = Depends(get_admin_id_from_token)):
     async with AssyncSessionLocal() as session:
-        stmt  = select(DBadmin).where(DBadmin.id == admin_id)
+        stmt  = select(DBadmin).where(DBadmin.id == admin_id).options(selectinload(DBadmin.salons))
         result = await session.execute(stmt)
         admin = result.scalar_one_or_none()
         if not admin:
