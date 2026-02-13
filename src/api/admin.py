@@ -339,4 +339,40 @@ async def update_master_schedule(
     return await service.update_master_schedule(master_id=master_id, salon_id=salon_id, schedule_data=schedule_data)
 
 
+@СheckingAdminAccessSalon()
+@router.put("/salons/{salon_id}/status")
+async def update_salon_status(
+    salon_id: int,
+    status: bool,
+    admin: DBadmin = Depends(get_admin_from_id),
+    service: SalonService = Depends(get_salon_service)
+):
+    """Обновление статуса салона"""
+    return await service.update_salon_status(salon_id=salon_id, status=status, admin_id=admin.id)
+
+
+@СheckingAdminAccessSalon()
+@router.put("/masters/{master_id}/status")
+async def update_master_status(
+    master_id: int,
+    status: bool,
+    admin: DBadmin = Depends(get_admin_from_id),
+    service: MasterService = Depends(get_master_service)
+):
+    """Обновление статуса мастера"""
+    return await service.update_master_status(master_id=master_id, status=status, admin_id=admin.id)
+
+@router.put("/users/{user_id}/status")
+async def update_user_status(
+    user_id: int,
+    status: bool,
+    admin: DBadmin = Depends(get_super_admin_from_id),
+    service: UserService = Depends(get_user_service)
+):
+    """Обновление статуса пользователя"""
+    return await service.update_user_status(user_id=user_id, status=status)
+
+# TODO добавить столбец reason_for_deletion в таблицу пользователей, салонов и мастеров, 
+# чтобы сохранять причину деактивации аккаунта. 
+# И добавить возможность указывать эту причину при деактивации через админку.
 

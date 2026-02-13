@@ -150,23 +150,27 @@ class AppointmentService:
             await self.session.refresh(appointment)
             
             return {
+                "status": "success",
                 "message": "Appointment created successfully",
-                "appointment": {
+                "data": {
                     "id": appointment.id,
+                    "client_id": appointment.client_id,
                     "salon_id": appointment.salon_id,
                     "master_id": appointment.master_id,
                     "service_id": appointment.service_id,
                     "date_time": appointment.date_time.isoformat(),
                     "end_time": appointment.end_time.isoformat(),
-                    "status": appointment.status,
-                    "comment": appointment.comment
-                }
+                    "status": "confirmed",
+                    "comment": appointment.comment,
+                    "created_at": appointment.created_at.isoformat()
+                },
             }
     
     async def delete_appointment(
         self, 
         appointment_id: int, 
-        user_id: int
+        user_id: int, 
+        reason: str | None = None
     ) -> dict:
         """
         Удаление записи (soft delete)
@@ -174,6 +178,7 @@ class AppointmentService:
         Args:
             appointment_id: ID записи
             user_id: ID пользователя
+            reason: Причина удаления записи
             
         Returns:
             dict: Сообщение об успехе
@@ -203,10 +208,12 @@ class AppointmentService:
             
             appointment.is_active = False
             appointment.status = False
+            appointment.comment = f"{appointment.comment}\n[Deleted] Reason: {reason}" if appointment.comment else f"[Deleted] Reason: {reason}"
             
             return {
+                "status": "success",
                 "message": "Appointment deleted successfully",
-                "appointment": {
+                "data": {
                     "id": appointment.id,
                     "salon_id": appointment.salon_id,
                     "master_id": appointment.master_id,
@@ -381,3 +388,62 @@ class AppointmentService:
 
             return masters_slots
 
+    async def update_appointment(
+        self,
+        appointment_id: int,
+        date_time: datetime,
+        master_id: int,
+        comment: str | None,
+        user_id: int
+    ) -> dict:
+        """
+        Обновление существующей записи
+        
+        Args:
+            appointment_id: ID записи
+            date_time: Новая дата и время записи
+            master_id: ID мастера
+            comment: Новый комментарий
+            
+        Returns:
+            dict: Информация об обновленной записи
+        """
+        async with self.session.begin():
+            stmt = select(DBappointment).where(DBappointment.id == appointment_id)
+            result = await self.session.execute(stmt)
+            appointment = result.scalar_one_or_none()
+            
+            if not appointment:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Appointment not found"
+                )
+            
+            if appointment.client_id != user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not have the right to update this record"
+                )
+            
+            if not appointment.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_410_GONE,
+                    detail="This appointment has already been deleted"
+                )
+            appointment.date_time = date_time
+            appointment.master_id = master_id
+            appointment.comment = comment
+            await self.session.flush()
+            await self.session.refresh(appointment)
+            return {
+                    "status": "success",
+                    "data": {
+                        "id": appointment.id,
+                        "date_time": appointment.date_time,
+                        "end_time": appointment.end_time,
+                        "master_id": appointment.master_id,
+                        "comment": appointment.comment,
+                        "updated_at": appointment.updated_at.isoformat()
+                    },
+                    "message": "Appointment updated successfully"
+                    }

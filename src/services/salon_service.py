@@ -2,7 +2,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
-from src.schemas import SalonEdit
+from src.schemas import SalonEdit, SalonCreate
 from src.models import (salons as DBsalon,
                         masters as DBmaster,
                         master_salon as DBmaster_salon,
@@ -242,10 +242,9 @@ class SalonService:
                 }
             }
 
-    async def update_salon(self, salon_id: int, salon_data) -> dict:
+    async def update_salon(self, salon_id: int, salon_data: SalonCreate) -> dict:
         """Обновление салона (для суперадмина)"""
-        from src.schemas import SalonCreate
-        
+
         async with self.session.begin():
             stmt = select(DBsalon).where(DBsalon.id == salon_id)
             result = await self.session.execute(stmt)
@@ -395,3 +394,23 @@ class SalonService:
             appointment.is_active = False
             
             return {"message": f"Appointment {appointment_id} deleted successfully"}
+
+    async def update_salon_status(self, salon_id: int, is_active: bool, admin_id: int) -> dict:
+        """Активация/деактивация салона"""
+        async with self.session.begin():
+            salon = await self.get_salon_for_admin(admin_id=admin_id, salon_id=salon_id)
+            salon.is_active = is_active
+            
+            status_str = "activated" if is_active else "deactivated"
+            return {
+                    "status": "success",
+                    "message": f"Salon has been successfully {status_str}.",
+                    "data": {
+                        "salon_id": salon_id,
+                        "is_active": is_active,
+                        "changed_by_admin_id": admin_id
+                    },
+                }
+
+
+    

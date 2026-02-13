@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from src.models import users as DBUser, admins as DBadmin
 from src.core.security import create_jwt_token
 from src.core.utils import verify_password
-
+from src.core.config import ACCESS_TOKEN_EXPIRE_HOURS
 
 class AuthService:
     """Сервис для авторизации"""
@@ -54,14 +54,32 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password"
             )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account has been banned"
+            )
         
         token = await create_jwt_token({"user_id": user.id})
         
-        return {
-            "access_token": token,
-            "token_type": "bearer"
-        }
-    
+        return  {
+                    "status": "success",
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "data": {
+                        "expires_in": ACCESS_TOKEN_EXPIRE_HOURS * 3600,  # Время в секундах
+                        "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "phone": user.phone,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "created_at": user.created_at
+                        }
+                    }
+                    }
+        
+   
     async def authenticate_admin(
         self,
         form_data: OAuth2PasswordRequestForm
@@ -103,9 +121,22 @@ class AuthService:
         
         token = await create_jwt_token({"admin_id": admin.id})
         
-        return {
-            "access_token": token,
-            "token_type": "bearer"
-        }
+        return  {
+                    "status": "success",
+                    "access_token": token,
+                    "token_type": "bearer",
+                    "data": {
+                        "expires_in": ACCESS_TOKEN_EXPIRE_HOURS * 3600,  # Время в секундах
+                        "user": {
+                        "id": admin.id,
+                        "email": admin.email,
+                        "phone": admin.phone,
+                        "first_name": admin.first_name,
+                        "last_name": admin.last_name,
+                        "created_at": admin.created_at
+                        }
+                    }
+                    }
+        
     
     

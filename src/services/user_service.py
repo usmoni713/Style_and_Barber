@@ -1,3 +1,5 @@
+from datetime import date
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
@@ -5,7 +7,8 @@ from fastapi import HTTPException, status
 from src.models import users as DBUser
 from src.repository.base_repo import BaseRepository
 from src.core.utils import hashing_password
-from src.schemas import User  
+from src.schemas import User, UserEdit
+from src.models import appointments as DBappointment
 
 
 class UserService:
@@ -47,7 +50,18 @@ class UserService:
                 self.session.add(new_user)
                 await self.session.flush()
             
-            return {"message": "User created successfully"}
+            return {
+                "status": "success",
+                "data": {
+                    "id": new_user.id,
+                    "email": new_user.email,
+                    "phone": new_user.phone,
+                    "first_name": new_user.first_name,
+                    "last_name": new_user.last_name,
+                    "created_at": new_user.created_at.isoformat()
+                },
+                "message": "Пользователь успешно зарегистрирован"
+                }
             
         except IntegrityError:
             raise HTTPException(
@@ -55,7 +69,15 @@ class UserService:
                 detail="This email or phone number is already busy."
             )
     
-    async def get_user_appointments(self, user_id: int) -> list[dict]:
+    async def get_user_appointments(
+            self, 
+            user_id: int,
+            from_date: date = None, 
+            to_date: date = None, 
+            salon_id: int = None, 
+            sort_by: str = "date_time",
+            order: str = "desc",
+            ) -> list[dict]:
         """
         Получение всех записей пользователя
         
@@ -65,16 +87,27 @@ class UserService:
         Returns:
             list[dict]: Список записей
         """
-        from src.models import appointments as DBappointment
-        from sqlalchemy import select, and_
         
         async with self.session:
+            
             stmt = select(DBappointment).where(
                 and_(
                     DBappointment.client_id == user_id,
                     DBappointment.is_active == True
                 )
             )
+            if from_date:
+                stmt = stmt.where(DBappointment.date_time >= from_date)
+            if to_date:
+                stmt = stmt.where(DBappointment.date_time <= to_date)
+            if salon_id:
+                stmt = stmt.where(DBappointment.salon_id == salon_id)
+            if sort_by in ["date_time", "created_at"]:
+                sort_column = getattr(DBappointment, sort_by)
+                if order == "asc":
+                    stmt = stmt.order_by(sort_column.asc())
+                else:
+                    stmt = stmt.order_by(sort_column.desc())
             result = await self.session.execute(stmt)
             appointments = result.scalars().all()
             
@@ -94,11 +127,8 @@ class UserService:
             
             return appointments_list
 
-    async def update_user(self, user_id: int, user_data) -> dict:
+    async def update_user(self, user_id: int, user_data: UserEdit) -> dict:
         """Обновление пользователя (для суперадмина)"""
-        from sqlalchemy import select, and_
-        from src.schemas import UserEdit
-        
         async with self.session.begin():
             stmt = select(DBUser).where(DBUser.id == user_id)
             result = await self.session.execute(stmt)
@@ -138,6 +168,7 @@ class UserService:
             user.phone = user_data.phone
             
             return {
+                "status": "success",
                 "message": "User updated successfully",
                 "user": {
                     "id": user.id,
@@ -222,4 +253,57 @@ class UserService:
             })
         return users_list
         
+    async def get_user_profile(self, user_id: int) -> dict:
+        """Получение профиля пользователя"""
         
+        stmt = select(DBUser).where(DBUser.id == user_id)
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return {
+                "status": "success",
+                "data": {
+                    "id": user.id,
+                    "email": user.email,
+                    "phone": user.phone,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "is_active": user.is_active,
+                    "created_at": user.created_at.isoformat(),
+                }
+            }
+    
+    async def update_user_status(self, user_id: int, status: bool) -> dict:
+        """Обновление статуса пользователя (активен/неактивен)"""
+        
+        stmt = select(DBUser).where(DBUser.id == user_id)
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        user.is_active = status
+        
+        status_str = "activated" if status else "deactivated"
+        return {
+            "status": "success",
+            "message": f"User has been successfully {status_str}.",
+            "data": {
+                "user_id": user_id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "is_active": status
+            },
+        }
+

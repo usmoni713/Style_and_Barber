@@ -7,7 +7,7 @@ from src.services.appointment_service import AppointmentService
 from src.schemas import ScheduleCreate
 from .depends_functions import get_salon_service, get_appointment_service, get_schedule_service
 
-router = APIRouter(tags=["public"])
+router = APIRouter(prefix="/api/v1", tags=["public"])
 
 
 @router.get("/salons")
@@ -21,7 +21,7 @@ async def get_salons(
         dict: Список салонов
     """
     salons = await service.get_all_salons()
-    return {"salons": salons}
+    return {"status": "success", "data": {"salons": salons}}
 
 
 @router.get("/masters")
@@ -42,7 +42,7 @@ async def get_masters(
         dict: Список мастеров
     """
     masters = await service.get_masters(salon_id=salon_id, service_id=service_id, target_date=target_date)
-    return {"masters": masters}
+    return {"status": "success", "data": {"masters": masters}}
 
 
 @router.get("/services")
@@ -57,7 +57,7 @@ async def get_services(
         dict: Список услуг
     """
     services = await service.get_services(salon_id=salon_id)
-    return {"services": services}
+    return {"status": "success","data": {"services": services}}
 
 
 @router.get("/free_slots")
@@ -89,7 +89,7 @@ async def get_free_slots(
         master_id=master_id,
         min_hours_before=min_hours_before
     )
-    return {"slots": slots}
+    return {"status": "success", "data": {"slots": slots}}
 
 
 @router.get("/salons/{salon_id}/schedule")
@@ -98,7 +98,7 @@ async def get_salon_schedule_by_id(
     schedule_service: ScheduleService = Depends(get_schedule_service)):
 
     schedule = await schedule_service.get_salon_schedule(salon_id=salon_id)
-    return {"schedule": schedule}
+    return {"status": "success", "data": {"salon_id": salon_id, "schedule": schedule}}
 
 @router.get("/salons/{salon_id}/masters/{master_id}/schedule")
 async def get_master_schedule_by_id(
@@ -107,7 +107,10 @@ async def get_master_schedule_by_id(
     schedule_service: ScheduleService = Depends(get_schedule_service)):
 
     schedule = await schedule_service.get_master_schedule(salon_id=salon_id, master_id=master_id)
-    return {"schedule": schedule}
-
+    return {"status": "success", 
+            "data": {
+                "salon_id": salon_id,
+                "master_id": master_id,
+                "schedule": schedule}}
 
 

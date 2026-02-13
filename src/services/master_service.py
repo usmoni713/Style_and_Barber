@@ -42,3 +42,35 @@ class MasterService:
                 }
             }
 
+
+    async def update_master_status(self, master_id: int, status: bool, admin_id: int) -> dict:
+            """Обновление статуса мастера"""
+
+            async with self.session.begin():
+                stmt = select(DBmaster).where(DBmaster.id == master_id)
+                result = await self.session.execute(stmt)
+                master = result.scalar_one_or_none()
+                
+                if not master:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Master not found"
+                    )
+                
+                master.is_active = status
+                
+                status_str = "activated" if status else "deactivated"
+                return {
+                    "status": "success",
+                    "message": f"Master has been successfully {status_str}.",
+                    "data": {
+                        "master_id": master_id,
+                        "user": {
+                        "id": master.user_id,
+                        "first_name": master.user.first_name if master.user else "Unknown",
+                        "last_name": master.user.last_name if master.user else "Unknown"
+                        },
+                        "is_active": status,
+                        "changed_by_admin_id": admin_id
+                    },
+                    }
