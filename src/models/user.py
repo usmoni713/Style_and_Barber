@@ -12,6 +12,7 @@ class users(Base,BaseMixin):
     password_hash: Mapped[str]
     first_name: Mapped[str]
     last_name: Mapped[str | None]
+    reason_for_deletion: Mapped[str | None]
 
     master = relationship("masters", back_populates="user")
     appointments = relationship("appointments", back_populates="client")

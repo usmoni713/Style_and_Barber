@@ -17,6 +17,7 @@ class services(Base, BaseMixin):
     description:Mapped[str]
     duration_minutes:Mapped[int]
     base_price:Mapped[int]
+    reason_for_deletion: Mapped[str | None]
 
     masters = relationship("masters", secondary="master_service", back_populates="services")
     appointments = relationship("appointments", back_populates="service")

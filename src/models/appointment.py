@@ -18,6 +18,7 @@ class appointments(Base, BaseMixin):
     end_time:Mapped[datetime]
     status: Mapped[bool]
     comment:Mapped[str] = mapped_column(String(300))
+    reason_for_deletion: Mapped[str | None]
 
 
     client = relationship("users", back_populates="appointments")

@@ -12,6 +12,7 @@ class masters(Base, BaseMixin):
     photo:Mapped[str]
     specialization:Mapped[str]
     about:Mapped[str]
+    reason_for_deletion: Mapped[str | None]
     
     user = relationship("users", back_populates="master", uselist=False)
     # мастер может работать в нескольких салонах

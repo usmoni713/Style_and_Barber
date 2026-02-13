@@ -13,6 +13,7 @@ class admins(Base,BaseMixin):
     first_name: Mapped[str]
     last_name: Mapped[str | None]
     super_admin: Mapped[bool | None]
+    reason_for_deletion: Mapped[str | None]
     
     salons = relationship("salons",secondary="admin_salon", back_populates="admins")
     # def __repr__(self) -> str:
