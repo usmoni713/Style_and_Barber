@@ -124,6 +124,7 @@ async def get_appointments_for_salon(
 async def delete_appointment_for_salon(
     salon_id: int,
     appointment_id: int,
+    reason: str = Query(..., description="Причина удаления записи"),
     admin: DBadmin = Depends(get_admin_from_id),
     service: SalonService = Depends(get_salon_service)
 ):
@@ -131,6 +132,7 @@ async def delete_appointment_for_salon(
     return await service.delete_appointment_for_salon(
         salon_id=salon_id,
         appointment_id=appointment_id,
+        reason=reason,
         admin_id=admin.id
     )
 
@@ -173,11 +175,12 @@ async def update_admin(
 @router.delete("/admins/{admin_id}")
 async def delete_admin(
     admin_id: int,
+    reason: str = Query(..., description="Причина деактивации администратора"),
     admin: DBadmin = Depends(get_super_admin_from_id),
     service: AdminService = Depends(get_admin_service)
 ):
     """Удаление администратора (только для super_admin)"""
-    return await service.delete_admin(admin_id)
+    return await service.delete_admin(admin_id, reason=reason)
 
 
 @router.get("/admins")
@@ -278,11 +281,12 @@ async def update_user(
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: int,
+    reason: str = Query(..., description="Причина деактивации пользователя"),
     admin: DBadmin = Depends(get_super_admin_from_id),
     service: UserService = Depends(get_user_service)
 ):
     """Удаление пользователя (только для super_admin)"""
-    return await service.delete_user(user_id)
+    return await service.delete_user(admin_id=admin.id, user_id=user_id, reason=reason)
 
 
 @router.get("/users")
@@ -344,11 +348,12 @@ async def update_master_schedule(
 async def update_salon_status(
     salon_id: int,
     status: bool,
+    reason: str = Query(None, description="Причина изменения статуса салона (требуется при деактивации)"),
     admin: DBadmin = Depends(get_admin_from_id),
     service: SalonService = Depends(get_salon_service)
 ):
     """Обновление статуса салона"""
-    return await service.update_salon_status(salon_id=salon_id, status=status, admin_id=admin.id)
+    return await service.update_salon_status(salon_id=salon_id, status=status, admin_id=admin.id, reason=reason)
 
 
 @СheckingAdminAccessSalon()
@@ -356,23 +361,21 @@ async def update_salon_status(
 async def update_master_status(
     master_id: int,
     status: bool,
+    reason: str = Query(None, description="Причина изменения статуса мастера (требуется при деактивации)"),
     admin: DBadmin = Depends(get_admin_from_id),
     service: MasterService = Depends(get_master_service)
 ):
     """Обновление статуса мастера"""
-    return await service.update_master_status(master_id=master_id, status=status, admin_id=admin.id)
+    return await service.update_master_status(master_id=master_id, status=status, admin_id=admin.id, reason=reason)
 
 @router.put("/users/{user_id}/status")
 async def update_user_status(
     user_id: int,
     status: bool,
+    reason: str = Query(None, description="Причина изменения статуса пользователя (требуется при деактивации)"),
     admin: DBadmin = Depends(get_super_admin_from_id),
     service: UserService = Depends(get_user_service)
 ):
     """Обновление статуса пользователя"""
-    return await service.update_user_status(user_id=user_id, status=status)
-
-# TODO добавить столбец reason_for_deletion в таблицу пользователей, салонов и мастеров, 
-# чтобы сохранять причину деактивации аккаунта. 
-# И добавить возможность указывать эту причину при деактивации через админку.
+    return await service.update_user_status(user_id=user_id, status=status, reason=reason)
 

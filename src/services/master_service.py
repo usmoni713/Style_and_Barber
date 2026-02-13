@@ -43,7 +43,7 @@ class MasterService:
             }
 
 
-    async def update_master_status(self, master_id: int, status: bool, admin_id: int) -> dict:
+    async def update_master_status(self, master_id: int, status: bool, admin_id: int, reason: str=None) -> dict:
             """Обновление статуса мастера"""
 
             async with self.session.begin():
@@ -58,6 +58,10 @@ class MasterService:
                     )
                 
                 master.is_active = status
+                if not status:
+                    master.reason_for_deletion = reason
+                else:
+                    master.reason_for_deletion = None
                 
                 status_str = "activated" if status else "deactivated"
                 return {

@@ -179,10 +179,8 @@ class UserService:
                 }
             }
 
-    async def delete_user(self, user_id: int) -> dict:
+    async def delete_user(self, admin_id: int, user_id: int, reason: str) -> dict:
         """Удаление пользователя (soft delete)"""
-        from sqlalchemy import select, and_, update
-        
         async with self.session.begin():
             stmt_check = select(DBUser).where(DBUser.id == user_id)
             result_check = await self.session.execute(stmt_check)
@@ -201,8 +199,17 @@ class UserService:
                 )
             
             user_to_delete.is_active = False
+            user_to_delete.reason_for_deletion = reason
             
-            return {"message": f"User {user_id} deleted successfully"}
+            return {"status": "success",
+                    "message": f"User {user_id} deactivated successfully.",
+                    "data": {
+                        "user_id": user_id,
+                        "is_active": False,
+                        "reason_for_deletion": reason,
+                        "changed_by_admin_id": admin_id
+                    },
+                }
 
     async def get_all_users(self) -> list[dict]:
         """Получение списка всех пользователей"""
@@ -279,21 +286,25 @@ class UserService:
                 }
             }
     
-    async def update_user_status(self, user_id: int, status: bool) -> dict:
+    async def update_user_status(self, user_id: int, status: bool, reason: str=None) -> dict:
         """Обновление статуса пользователя (активен/неактивен)"""
-        
-        stmt = select(DBUser).where(DBUser.id == user_id)
-        result = await self.session.execute(stmt)
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        
-        user.is_active = status
-        
+        async with self.session.begin():
+            stmt = select(DBUser).where(DBUser.id == user_id)
+            result = await self.session.execute(stmt)
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            
+            user.is_active = status
+            if not status:
+                user.reason_for_deletion = reason
+            else:
+                user.reason_for_deletion = None
+            
         status_str = "activated" if status else "deactivated"
         return {
             "status": "success",

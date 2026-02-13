@@ -1,7 +1,6 @@
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
-
 from src.schemas import SalonEdit, SalonCreate
 from src.models import (salons as DBsalon,
                         masters as DBmaster,
@@ -9,7 +8,8 @@ from src.models import (salons as DBsalon,
                         services as DBservice,
                         admin_salon as DBadmin_salon,
                         admins as DBadmin,
-                        service_salon as DBservice_salon
+                        service_salon as DBservice_salon,
+                        appointments as DBappointment
 
 ) 
 from src.repository.base_repo import BaseRepository
@@ -274,8 +274,6 @@ class SalonService:
 
     async def delete_master_from_salon(self, salon_id: int, master_id: int, admin_id: int) -> dict:
         """Удаление мастера из салона"""
-        from sqlalchemy import delete
-        
         async with self.session.begin():
             salon = await self.get_salon_for_admin(admin_id=admin_id, salon_id=salon_id)
             
@@ -361,15 +359,11 @@ class SalonService:
         self,
         salon_id: int,
         appointment_id: int,
+        reason: str,
         admin_id: int
     ) -> dict:
         """Удаление записи в салоне"""
-        from src.models import appointments as DBappointment
-        from sqlalchemy import update
-        
         async with self.session.begin():
-            salon = await self.get_salon_for_admin(admin_id=admin_id, salon_id=salon_id)
-            
             stmt_check = select(DBappointment).where(
                 and_(
                     DBappointment.id == appointment_id,
@@ -392,14 +386,28 @@ class SalonService:
                 )
             
             appointment.is_active = False
+            appointment.reason_for_deletion = reason
             
-            return {"message": f"Appointment {appointment_id} deleted successfully"}
-
-    async def update_salon_status(self, salon_id: int, is_active: bool, admin_id: int) -> dict:
+            return {"status": "success",
+                    "message": f"Appointment {appointment_id} deleted successfully.",
+                    "data": {
+                        "salon_id": salon_id,
+                        "appointment_id": appointment_id,
+                        "is_active": False,
+                        "reason_for_deletion": reason,
+                        "changed_by_admin_id": admin_id
+                    },
+                }
+        
+    async def update_salon_status(self, salon_id: int, is_active: bool, admin_id: int, reason: str=None) -> dict:
         """Активация/деактивация салона"""
         async with self.session.begin():
             salon = await self.get_salon_for_admin(admin_id=admin_id, salon_id=salon_id)
             salon.is_active = is_active
+            if not is_active:
+                salon.reason_for_deletion = reason
+            else:
+                salon.reason_for_deletion = None
             
             status_str = "activated" if is_active else "deactivated"
             return {

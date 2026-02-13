@@ -63,7 +63,7 @@ class AdminService:
                 detail="This email or phone number is already busy."
             )
 
-    async def delete_admin(self, admin_id:int):
+    async def delete_admin(self, admin_id:int, reason:str) -> dict:
         async with self.session.begin():
             stmt_check = select(DBadmin).where(DBadmin.id == admin_id)
             result_check = await self.session.execute(stmt_check)
@@ -81,8 +81,18 @@ class AdminService:
                     detail="Admin has already been deleted"
                 )
             admin_to_delete.is_active = False
+            admin_to_delete.reason_for_deletion = reason
+
             
-            return {"message": f"Admin {admin_id} deleted successfully"}
+            return {"status": "success",
+                    "message": f"Admin {admin_id} deactivated successfully.",
+                    "data": {
+                        "admin_id": admin_id,
+                        "is_active": False,
+                        "reason_for_deletion": reason,
+                        "changed_by_admin_id": admin_id
+                    },
+                }
 
     async def update_admin(self, admin_id: int, admin_data: AdminEdit) -> dict:
         """Обновление администратора"""
