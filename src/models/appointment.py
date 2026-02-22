@@ -1,10 +1,18 @@
+from enum import Enum as _enum
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .Base import Base, BaseMixin
 
+
+class AppointmentStatus(_enum):
+    pending = "pending"
+    confirmed = "confirmed"
+    completed = "completed"
+    cancelled = "cancelled"
+    no_show = "no_show"
 
 class appointments(Base, BaseMixin):
     __tablename__ = "appointments"
@@ -16,7 +24,7 @@ class appointments(Base, BaseMixin):
     service_id: Mapped[int] = mapped_column(ForeignKey("services.id"))
     date_time: Mapped[datetime]
     end_time:Mapped[datetime]
-    status: Mapped[bool]
+    status: Mapped[AppointmentStatus] = mapped_column(Enum(AppointmentStatus), default=AppointmentStatus.confirmed)
     comment:Mapped[str] = mapped_column(String(300))
     reason_for_deletion: Mapped[str | None]
 
