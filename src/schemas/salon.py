@@ -19,5 +19,20 @@ class SalonEdit(BaseModel):
     photo_url: str
 
 
+class SalonResponse(BaseModel):
+    """Схема ответа с информацией о салоне"""
+    id: int
+    title: str
+    address: str
+    phone: str
+    photo_url: str
+    rating: float = 0.0
+    reviews_count: int = 0
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 
 

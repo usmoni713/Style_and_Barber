@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 
 from src.models import (admins as DBadmin,
                         admin_salon as DBadmin_salon,
+                        salons as DBsalon
                         )
 from src.repository.base_repo import BaseRepository
 from src.core.utils import hashing_password
@@ -182,7 +183,6 @@ class AdminService:
 
     async def get_salon_admins(self, salon_id: int) -> list[dict]:
         """Получение списка администраторов конкретного салона"""
-        from src.models import salons as DBsalon
         
         salon_stmt = select(DBsalon).where(DBsalon.id == salon_id)
         salon_result = await self.session.execute(salon_stmt)

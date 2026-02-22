@@ -21,5 +21,6 @@ class masters(Base, BaseMixin):
     services = relationship("services", secondary="master_service", back_populates="masters")
     appointments = relationship("appointments", back_populates="master")
     work_schedule = relationship("master_schedules", back_populates="master")
+    reviews = relationship("reviews", back_populates="master")
 
 

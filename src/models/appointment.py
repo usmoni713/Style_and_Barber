@@ -33,4 +33,5 @@ class appointments(Base, BaseMixin):
     salon = relationship("salons", back_populates="appointments")
     master = relationship("masters", back_populates="appointments")
     service = relationship("services", back_populates="appointments")
+    review = relationship("reviews", back_populates="appointment", uselist=False)
    

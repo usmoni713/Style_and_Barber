@@ -17,7 +17,7 @@ from src.repository.base_repo import BaseRepository
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 from src.services.schedule_service import ScheduleService
-
+from src.services.review_service import ReviewService
 class SalonService:
     """Сервис для работы с салонами"""
     
@@ -38,14 +38,20 @@ class SalonService:
             salons_ls = result.scalars().all()
         else: 
             salons_ls = await self.repo.get_all()
+        
+        review_service = ReviewService(self.session)
+        
         salons_list = []
         for salon in salons_ls:
+            rating_stats = await review_service.get_rating_stats(salon_id=salon.id)
             salons_list.append({
                 "id": salon.id,
                 "title": salon.title,
                 "address": salon.address,
                 "phone": salon.phone,
-                "photo_url": salon.photo_url
+                "photo_url": salon.photo_url,
+                "rating": rating_stats.average_rating,
+                "reviews_count": rating_stats.total_reviews
             })
         return salons_list
     
@@ -106,14 +112,19 @@ class SalonService:
                     available_ids = set(available)
             masters = [m for m in masters if m.id in available_ids]
         
+        review_service = ReviewService(self.session)
+        
         masters_list = []
         for master in masters:
+            rating_stats = await review_service.get_rating_stats(master_id=master.id)
             masters_list.append({
                 "id": master.id,
                 "photo": master.photo,
                 "specialization": master.specialization,
                 "about": master.about,
-                "user_id": master.user_id
+                "user_id": master.user_id,
+                "rating": rating_stats.average_rating,
+                "reviews_count": rating_stats.total_reviews
             })
         return masters_list
 

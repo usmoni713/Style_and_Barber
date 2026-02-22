@@ -19,7 +19,7 @@ class AppointmentResponse(BaseModel):
     service_id: int
     date_time: datetime
     end_time: datetime
-    status: bool
+    status: str
     comment: str | None = None
     created_at: datetime
     

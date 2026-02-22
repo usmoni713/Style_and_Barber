@@ -16,3 +16,4 @@ class users(Base,BaseMixin):
 
     master = relationship("masters", back_populates="user")
     appointments = relationship("appointments", back_populates="client")
+    reviews = relationship("reviews", back_populates="user")

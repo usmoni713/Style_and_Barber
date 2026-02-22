@@ -160,7 +160,7 @@ class AppointmentService:
                     "service_id": appointment.service_id,
                     "date_time": appointment.date_time.isoformat(),
                     "end_time": appointment.end_time.isoformat(),
-                    "status": "confirmed",
+                    "status": appointment.status,
                     "comment": appointment.comment,
                     "created_at": appointment.created_at.isoformat()
                 },
@@ -207,7 +207,7 @@ class AppointmentService:
                 )
             
             appointment.is_active = False
-            appointment.status = False
+            appointment.status = "cancelled"
             appointment.comment = f"{appointment.comment}\n[Deleted] Reason: {reason}" if appointment.comment else f"[Deleted] Reason: {reason}"
             
             return {

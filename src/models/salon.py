@@ -17,4 +17,5 @@ class salons(Base, BaseMixin):
     admins = relationship("admins",secondary="admin_salon", back_populates="salons")
     services = relationship("services", secondary="service_salon", back_populates="salons")
     work_schedule = relationship("salon_schedules", back_populates="salon")
+    reviews = relationship("reviews", back_populates="salon")
 

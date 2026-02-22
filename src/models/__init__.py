@@ -13,6 +13,7 @@ from .master_salon import master_salon
 from .master_service import master_service
 from .admin_salon import admin_salon
 from .service_salon import service_salon
+from .review import reviews
 
 __all__ = [
     "Base",
@@ -28,6 +29,7 @@ __all__ = [
     "admin_salon",
     "service_category",
     "service_salon",
+    "reviews",
     "salon_schedules",
     "master_schedules"
 ]
